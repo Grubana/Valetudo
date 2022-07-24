@@ -42,6 +42,10 @@ class RoborockS7ValetudoRobot extends RoborockGen4ValetudoRobot {
             })
         }));
 
+        this.registerCapability(new capabilities.RoborockAutoEmptyDockManualTriggerCapability({
+            robot: this
+        }));
+
         [
             capabilities.RoborockKeyLockCapability,
         ].forEach(capability => {

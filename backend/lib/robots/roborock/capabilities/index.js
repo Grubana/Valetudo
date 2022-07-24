@@ -25,5 +25,6 @@ module.exports = {
     RoborockVoicePackManagementCapability: require("./RoborockVoicePackManagementCapability"),
     RoborockWaterUsageControlCapability: require("./RoborockWaterUsageControlCapability"),
     RoborockWifiConfigurationCapability: require("./RoborockWifiConfigurationCapability"),
-    RoborockZoneCleaningCapability: require("./RoborockZoneCleaningCapability")
+    RoborockZoneCleaningCapability: require("./RoborockZoneCleaningCapability"),
+    RoborockAutoEmptyDockManualTriggerCapability: require("./RoborockAutoEmptyDockManualTriggerCapability")
 };
