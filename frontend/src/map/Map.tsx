@@ -1,6 +1,6 @@
 import React, {createRef} from "react";
 import {RawMapData, RawMapEntityType} from "../api";
-import {MapLayerRenderer} from "./MapLayerRenderer";
+import {MapLayerManager} from "./MapLayerManager";
 import {PathDrawer} from "./PathDrawer";
 import {TouchHandler} from "./utils/touch_handling/TouchHandler";
 import StructureManager from "./StructureManager";
@@ -16,6 +16,8 @@ import {PanEndTouchHandlerEvent} from "./utils/touch_handling/events/PanEndTouch
 import {PinchStartTouchHandlerEvent} from "./utils/touch_handling/events/PinchStartTouchHandlerEvent";
 import {PinchMoveTouchHandlerEvent} from "./utils/touch_handling/events/PinchMoveTouchHandlerEvent";
 import {PinchEndTouchHandlerEvent} from "./utils/touch_handling/events/PinchEndTouchHandlerEvent";
+import {PointCoordinates} from "./utils/types";
+import create from "zustand";
 
 export interface MapProps {
     rawMap: RawMapData;
@@ -27,7 +29,15 @@ export interface MapState {
     selectedSegmentIds: Array<string>
 }
 
-const Container = styled(Box)({
+export const usePendingMapAction = create<{
+    hasPendingMapAction: boolean
+}>()(() => {
+    return {
+        hasPendingMapAction: false
+    };
+});
+
+export const MapContainer = styled(Box)({
     position: "relative",
     height: "100%",
     width: "100%",
@@ -39,10 +49,10 @@ const SCROLL_PARAMETERS = {
     PIXELS_PER_FULL_STEP: 100
 };
 
-class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
+abstract class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
     protected readonly canvasRef: React.RefObject<HTMLCanvasElement>;
     protected structureManager: StructureManager;
-    protected mapLayerRenderer: MapLayerRenderer;
+    protected mapLayerManager: MapLayerManager;
     protected canvas!: HTMLCanvasElement;
     protected ctxWrapper!: Canvas2DContextTrackingWrapper;
     protected readonly resizeListener: () => void;
@@ -63,7 +73,7 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
     protected scrollTimeout: NodeJS.Timeout | undefined;
 
 
-    constructor(props : MapProps) {
+    protected constructor(props : MapProps) {
         super(props as Readonly<P & MapProps>);
 
         this.canvasRef = createRef();
@@ -72,7 +82,7 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
         this.structureManager = new StructureManager();
         this.structureManager.setPixelSize(this.props.rawMap.pixelSize);
 
-        this.mapLayerRenderer = new MapLayerRenderer();
+        this.mapLayerManager = new MapLayerManager();
 
         this.state = {
             selectedSegmentIds: [] as Array<string>
@@ -159,6 +169,8 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
 
 
         this.updateInternalDrawableState();
+
+        usePendingMapAction.setState({hasPendingMapAction: false});
     }
 
     componentDidUpdate(prevProps: Readonly<MapProps>, prevState: Readonly<MapState>): void {
@@ -190,6 +202,8 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
     componentWillUnmount(): void {
         window.removeEventListener("resize", this.resizeListener);
         document.removeEventListener("visibilitychange", this.visibilityStateChangeListener);
+
+        usePendingMapAction.setState({hasPendingMapAction: false});
     }
 
     protected updateInternalDrawableState() : void {
@@ -197,58 +211,48 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
 
         this.updateDrawableComponents().then(() => {
             this.draw();
+        }).catch(() => {
+            /* intentional */
         });
     }
 
-    render(): JSX.Element {
-        return (
-            <Container style={{overflow: "hidden"}}>
-                <canvas
-                    ref={this.canvasRef}
-                    style={{
-                        width: "100%",
-                        height: "100%",
-                        imageRendering: "crisp-edges"
-                    }}
-                />
-                {this.renderAdditionalElements()}
-            </Container>
-        );
+    protected redrawLayers() : void {
+        this.mapLayerManager.draw(this.props.rawMap, this.props.theme).then(() => {
+            this.draw();
+        }).catch(() => {
+            /* intentional */
+        });
     }
 
-    protected renderAdditionalElements() : JSX.Element {
-        return <></>;
-    }
-
-    protected updateDrawableComponents(): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            this.drawableComponentsMutex.take(async () => {
-                this.drawableComponents = [];
-
-                await this.mapLayerRenderer.draw(this.props.rawMap, this.props.theme);
-                this.drawableComponents.push(this.mapLayerRenderer.getCanvas());
-
-                const pathsImage = await PathDrawer.drawPaths( {
-                    paths: this.props.rawMap.entities.filter(e => {
-                        return e.type === RawMapEntityType.Path || e.type === RawMapEntityType.PredictedPath;
-                    }),
-                    mapWidth: this.props.rawMap.size.x,
-                    mapHeight: this.props.rawMap.size.y,
-                    pixelSize: this.props.rawMap.pixelSize,
-                    theme: this.props.theme,
-                });
-
-                this.drawableComponents.push(pathsImage);
-
-                this.structureManager.updateMapStructuresFromMapData(this.props.rawMap);
-
-                this.updateState();
-
-                this.drawableComponentsMutex.leave();
-
+    protected async updateDrawableComponents(): Promise<void> {
+        await new Promise<void>((resolve) => {
+            this.drawableComponentsMutex.take(() => {
                 resolve();
             });
         });
+
+        this.drawableComponents = [];
+
+        await this.mapLayerManager.draw(this.props.rawMap, this.props.theme);
+        this.drawableComponents.push(this.mapLayerManager.getCanvas());
+
+        const pathsImage = await PathDrawer.drawPaths( {
+            paths: this.props.rawMap.entities.filter(e => {
+                return e.type === RawMapEntityType.Path || e.type === RawMapEntityType.PredictedPath;
+            }),
+            mapWidth: this.props.rawMap.size.x,
+            mapHeight: this.props.rawMap.size.y,
+            pixelSize: this.props.rawMap.pixelSize,
+            paletteMode: this.props.theme.palette.mode,
+        });
+
+        this.drawableComponents.push(pathsImage);
+
+        this.structureManager.updateMapStructuresFromMapData(this.props.rawMap);
+
+        this.updateState();
+
+        this.drawableComponentsMutex.leave();
     }
 
     protected updateState() : void {
@@ -284,6 +288,8 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
                 }
             });
         }
+
+        this.mapLayerManager.setSelectedSegmentIds(updatedSelectedSegmentIds);
 
         this.setState({
             selectedSegmentIds: updatedSelectedSegmentIds,
@@ -345,7 +351,7 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
         });
     }
 
-    protected getCurrentViewportCenterCoordinatesInPixelSpace() : {x: number, y: number} {
+    protected getCurrentViewportCenterCoordinatesInPixelSpace() : PointCoordinates {
         return this.ctxWrapper.mapPointToCurrentTransform(this.canvas.width/2, this.canvas.height/2);
     }
 
@@ -381,33 +387,6 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
         });
 
         if (clientStructuresHandledTap) {
-            return true;
-        }
-
-        const mapStructuresHandledTap = this.structureManager.getMapStructures().some(structure => {
-            const result = structure.tap(tappedPointInScreenSpace, currentTransform);
-
-            if (result.requestDraw === true) {
-                drawRequested = true;
-            }
-
-            if (result.stopPropagation) {
-                if (result.deleteMe === true) {
-                    this.structureManager.removeMapStructure(structure);
-                }
-
-
-                this.updateState();
-
-                this.draw();
-
-                return true;
-            } else {
-                return false;
-            }
-        });
-
-        if (mapStructuresHandledTap) {
             return true;
         }
 
@@ -457,9 +436,7 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
         this.ctxWrapper.scale(factor, factor);
         this.ctxWrapper.translate(-pt.x, -pt.y);
 
-        const { scaleX } = this.ctxWrapper.getScaleFactor();
-        this.currentScaleFactor = scaleX;
-
+        this.updateScaleFactor();
         this.draw();
 
         return evt.preventDefault();
@@ -485,7 +462,7 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
 
             const currentTransform = this.ctxWrapper.getTransform();
             const currentPixelSize = this.structureManager.getPixelSize();
-            const invertedCurrentTransform = DOMMatrix.fromMatrix(this.ctxWrapper.getTransform()).invertSelf();
+            const invertedCurrentTransform = this.ctxWrapper.getTransform().invertSelf();
 
             const wasHandled = this.structureManager.getClientStructures().some(structure => {
                 const result = structure.translate(
@@ -580,12 +557,13 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
         const p = this.ctxWrapper.mapPointToCurrentTransform(this.touchHandlingState.lastX, this.touchHandlingState.lastY);
         this.ctxWrapper.translate(p.x - this.touchHandlingState.dragStart.x, p.y - this.touchHandlingState.dragStart.y);
 
+        this.updateScaleFactor();
         this.draw();
     }
 
     protected endPinch(evt: PinchEndTouchHandlerEvent) : void {
-        const { scaleX } = this.ctxWrapper.getScaleFactor();
-        this.currentScaleFactor = scaleX;
+        this.updateScaleFactor();
+
         this.endTranslate(evt);
     }
 
@@ -632,12 +610,17 @@ class Map<P, S> extends React.Component<P & MapProps, S & MapState > {
      * 
      * @returns {{x: number, y: number}} coordinates relative to the canvas element
      */
-    protected relativeCoordinatesToCanvas(x: number, y:number) : {x: number, y: number} {
+    protected relativeCoordinatesToCanvas(x: number, y:number) : PointCoordinates {
         const rect = this.canvas.getBoundingClientRect();
         return {
             x: x - rect.left,
             y: y - rect.top
         };
+    }
+
+    private updateScaleFactor() {
+        const { scaleX } = this.ctxWrapper.getScaleFactor();
+        this.currentScaleFactor = scaleX;
     }
 }
 

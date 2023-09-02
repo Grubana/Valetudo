@@ -46,8 +46,7 @@ You need to edit the newly created file in order to be able to talk with your ro
       "ip": "192.168.xxx.robotIp",
       "deviceId": 12345678,
       "cloudSecret": "aBcdEfgh",
-      "localSecret": "123456788989074560w34aaffasf",
-      "mapUploadUrlPrefix": "http://192.168.xxx.valetudoIp:8079"
+      "localSecret": "123456788989074560w34aaffasf"
     }
   }
 }
@@ -69,10 +68,6 @@ When running on the robot itself, these are usually detected automatically.
 |          | deviceId      | /mnt/default/device.conf                | did       |
 |          | cloudSecret   | /mnt/default/device.conf                | key       |
 |          | localSecret   | /mnt/data/miio/device.token             |           |
-| Viomi    | valetudo.conf | /mnt/data/valetudo/config.json          |           |
-|          | deviceId      | /etc/miio/device.conf                   | did       |
-|          | cloudSecret   | /etc/miio/device.conf                   | key       |
-|          | localSecret   | /etc/miio/device.token                  |           |
 | Dreame   | valetudo.conf | /data/valetudo_config.json              |           |
 |          | deviceId      | /data/config/miio/device.conf           | did       |
 |          | cloudSecret   | /data/config/miio/device.conf           | key       |
@@ -100,20 +95,7 @@ npm run start:dev --workspace=backend
 
 If your configuration is correct, Valetudo should now be working on your development host.
 
-### 5. Enable dummycloud connection
-
-The dummycloud is implemented by Valetudo, but the robot needs to connect to it.
-To enable this mode (which is required for many of the functionalities such as map uploading):
-
-1. Install Valetudo on the robot (if you haven’t done so already)
-2. `ssh root@vacuum`, then stop Valetudo.
-3. Edit the `valetudo.conf` _on the robot_ and point `robot.implementationSpecificConfig.dummycloudIp`
-   to your local development host.
-   This will instruct the Valetudo process on the robot to tell the miio_client app that it should
-   try to connect to your development host instead.
-4. `reboot`
-
-### 6. Code!
+### 5. Code!
 
 Modify the source code according to your needs, and restart the server as needed -- you can always run it as:
 

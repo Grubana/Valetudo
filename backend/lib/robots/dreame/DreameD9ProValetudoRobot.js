@@ -3,6 +3,7 @@ const DreameGen2LidarValetudoRobot = require("./DreameGen2LidarValetudoRobot");
 const DreameGen2ValetudoRobot = require("./DreameGen2ValetudoRobot");
 const DreameValetudoRobot = require("./DreameValetudoRobot");
 const entities = require("../../entities");
+const fs = require("fs");
 const MiioValetudoRobot = require("../MiioValetudoRobot");
 const ValetudoSelectionPreset = require("../../entities/core/ValetudoSelectionPreset");
 
@@ -16,11 +17,7 @@ class DreameD9ProValetudoRobot extends DreameGen2LidarValetudoRobot {
     constructor(options) {
         super(options);
 
-        this.registerCapability(new capabilities.DreameCarpetModeControlCapability({
-            robot: this,
-            siid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.SIID,
-            piid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.PROPERTIES.CARPET_MODE.PIID
-        }));
+        this.registerCapability(new capabilities.DreameCarpetModeControlCapability({robot: this}));
 
         this.registerCapability(new capabilities.DreameWaterUsageControlCapability({
             robot: this,
@@ -29,6 +26,25 @@ class DreameD9ProValetudoRobot extends DreameGen2LidarValetudoRobot {
             }),
             siid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.SIID,
             piid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.PROPERTIES.WATER_USAGE.PIID
+        }));
+
+        this.registerCapability(new capabilities.DreameZoneCleaningCapability({
+            robot: this,
+            miot_actions: {
+                start: {
+                    siid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.SIID,
+                    aiid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.ACTIONS.START.AIID
+                }
+            },
+            miot_properties: {
+                mode: {
+                    piid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.PROPERTIES.MODE.PIID
+                },
+                additionalCleanupParameters: {
+                    piid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.PROPERTIES.ADDITIONAL_CLEANUP_PROPERTIES.PIID
+                }
+            },
+            zoneCleaningModeId: 19
         }));
 
         this.registerCapability(new capabilities.DreameConsumableMonitoringCapability({
@@ -75,8 +91,9 @@ class DreameD9ProValetudoRobot extends DreameGen2LidarValetudoRobot {
 
     static IMPLEMENTATION_AUTO_DETECTION_HANDLER() {
         const deviceConf = MiioValetudoRobot.READ_DEVICE_CONF(DreameValetudoRobot.DEVICE_CONF_PATH);
+        const isD9Pro = !!(deviceConf && deviceConf.model === "dreame.vacuum.p2187");
 
-        return !!(deviceConf && deviceConf.model === "dreame.vacuum.p2187");
+        return isD9Pro && !fs.existsSync("/etc/dustbuilder_backport");
     }
 }
 

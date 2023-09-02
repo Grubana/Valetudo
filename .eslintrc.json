@@ -57,24 +57,24 @@
     "sort-requires/sort-requires": "warn",
     "operator-linebreak": ["error", "after"],
     "no-unneeded-ternary": ["error", { "defaultAssignment": false }],
-    "arrow-body-style": ["error", "always"],
     "regexp/no-unused-capturing-group": "off",
+    "regexp/prefer-w": "off",
+    "regexp/prefer-d": "off",
+    "regexp/no-useless-escape": "off",
+
+
 
     "no-empty": "off",
-    "brace-style": ["off", "1tbs"],
-    "no-trailing-spaces": ["off", { "ignoreComments": true }],
+    "brace-style": "off",
+    "no-trailing-spaces": "off",
     "keyword-spacing": "off",
-    "eol-last": ["off", "always"],
-    "no-multi-spaces": ["off", { "ignoreEOLComments": true }],
-    "semi": ["off", "always"],
-    "quotes": ["off", "double"],
-    "indent": [
-      "off",
-      4,
-      {
-        "SwitchCase": 1
-      }
-    ]
+    "eol-last": "off",
+    "no-multi-spaces": "off",
+    "semi": "off",
+    "quotes": "off",
+    "indent": "off"
+
+
   },
   "overrides": [
     {

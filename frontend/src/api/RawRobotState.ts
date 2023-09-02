@@ -15,7 +15,7 @@ export enum RobotAttributeClass {
     BatteryState = "BatteryStateAttribute",
     PresetSelectionState = "PresetSelectionStateAttribute",
     AttachmentState = "AttachmentStateAttribute",
-    OperationModeState = "OperationModeStateAttribute"
+    DockStatusState = "DockStatusStateAttribute"
 }
 
 export interface StatusState {
@@ -43,8 +43,8 @@ export interface BatteryState {
 export interface PresetSelectionState {
     __class: RobotAttributeClass.PresetSelectionState;
     metaData: Record<string, never>;
-    type: "fan_speed" | "water_grade";
-    value: "off" | "min" | "low" | "medium" | "high" | "max" | "turbo" | "custom";
+    type: "fan_speed" | "water_grade" | "operation_mode";
+    value: "off" | "min" | "low" | "medium" | "high" | "max" | "turbo" | "custom" | "vacuum" | "mop" | "vacuum_and_mop";
     customValue?: number;
 }
 
@@ -56,23 +56,21 @@ export interface AttachmentState {
     attached: boolean;
 }
 
-export interface OperationModeState {
-    __class: RobotAttributeClass.OperationModeState;
-    value: "vacuum" | "mop" | "vacuum_and_mop";
+export interface DockStatusState {
+    __class: RobotAttributeClass.DockStatusState;
+    metaData: Record<string, never>;
+    value:
+        | "error"
+        | "idle"
+        | "pause"
+        | "emptying"
+        | "cleaning"
+        | "drying";
 }
-
-// export interface ConsumableState {
-//   type: 'filter' | 'brush' | 'sensor' | 'mop';
-//   subType: 'none' | 'all' | 'main' | 'side_left' | 'side_right';
-//   remaining: {
-//     value: number;
-//     unit: 'minutes' | 'percent';
-//   };
-// }
 
 export type RobotAttribute =
     | StatusState
     | BatteryState
     | PresetSelectionState
     | AttachmentState
-    | OperationModeState;
+    | DockStatusState;

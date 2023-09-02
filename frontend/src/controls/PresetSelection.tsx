@@ -1,14 +1,4 @@
-import {
-    Box,
-    CircularProgress,
-    Grid,
-    Icon,
-    Paper,
-    Slider,
-    sliderClasses,
-    styled,
-    Typography,
-} from "@mui/material";
+import {Box, CircularProgress, Grid, Icon, Paper, Slider, sliderClasses, styled, Typography,} from "@mui/material";
 import {Mark} from "@mui/base";
 import React from "react";
 import {
@@ -23,6 +13,7 @@ import {
 import {ExpandLess as CloseIcon, ExpandMore as OpenIcon} from "@mui/icons-material";
 import LoadingFade from "../components/LoadingFade";
 import {useCommittingSlider} from "../hooks/useCommittingSlider";
+import {presetFriendlyNames, sortPresets} from "../presetUtils";
 
 const StyledIcon = styled(Icon)(({theme}) => {
     return {
@@ -51,15 +42,8 @@ const DiscreteSlider = styled(Slider)(({ theme }) => {
     };
 });
 
-const order = ["off", "min", "low", "medium", "high", "max", "turbo"];
-const sortPresets = (presets: PresetSelectionState["value"][]) => {
-    return [...presets].sort((a, b) => {
-        return order.indexOf(a) - order.indexOf(b);
-    });
-};
-
 export interface PresetSelectionProps {
-    capability: Capability.FanSpeedControl | Capability.WaterUsageControl;
+    capability: Capability.FanSpeedControl | Capability.WaterUsageControl | Capability.OperationModeControl;
     label: string;
     icon: JSX.Element;
 }
@@ -109,7 +93,7 @@ const PresetSelectionControl = (props: PresetSelectionProps): JSX.Element => {
         return filteredPresets.map((preset, index) => {
             return {
                 value: index,
-                label: preset,
+                label: presetFriendlyNames[preset],
             };
         });
     }, [filteredPresets]);
@@ -132,7 +116,7 @@ const PresetSelectionControl = (props: PresetSelectionProps): JSX.Element => {
         }
 
         return (
-            <Box px={1}>
+            <Box px={2.5}>
                 <DiscreteSlider
                     aria-labelledby={`${capability}-slider-label`}
                     step={null}
@@ -143,6 +127,7 @@ const PresetSelectionControl = (props: PresetSelectionProps): JSX.Element => {
                     min={0}
                     max={marks.length - 1}
                     marks={marks}
+                    track={capability !== Capability.OperationModeControl ? "normal" : false}
                 />
             </Box>
         );
@@ -194,7 +179,7 @@ const PresetSelectionControl = (props: PresetSelectionProps): JSX.Element => {
                                         !selectPresetIsLoading &&
                                         <Grid item sx={{marginTop: "-2px" /* ugh */}}>
                                             <Typography variant="subtitle1" sx={{paddingRight: "8px"}}>
-                                                {preset?.value}
+                                                {preset?.value ? presetFriendlyNames[preset.value] : ""}
                                             </Typography>
                                         </Grid>
                                     }

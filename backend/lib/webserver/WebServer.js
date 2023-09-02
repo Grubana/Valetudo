@@ -1,5 +1,4 @@
 const basicAuth = require("express-basic-auth");
-const bodyParser = require("body-parser");
 const compression = require("compression");
 const dynamicMiddleware = require("express-dynamic-middleware");
 const express = require("express");
@@ -38,14 +37,17 @@ class WebServer {
      * @param {import("../NetworkAdvertisementManager")} options.networkAdvertisementManager
      * @param {import("../NTPClient")} options.ntpClient
      * @param {import("../updater/Updater")} options.updater
+     * @param {import("../scheduler/Scheduler")} options.scheduler
      * @param {import("../ValetudoEventStore")} options.valetudoEventStore
      * @param {import("../Configuration")} options.config
+     * @param {import("../utils/ValetudoHelper")} options.valetudoHelper
      */
     constructor(options) {
         const self = this;
 
         this.robot = options.robot;
         this.config = options.config;
+        this.valetudoHelper = options.valetudoHelper;
 
         this.valetudoEventStore = options.valetudoEventStore;
 
@@ -53,11 +55,11 @@ class WebServer {
 
         this.port = this.webserverConfig.port;
 
-        this.basicAuthInUse = false; //TODO: redo auth with jwt or something like that
+        this.basicAuthInUse = false; //TODO: redo auth
 
         this.app = express();
         this.app.use(compression());
-        this.app.use(bodyParser.json());
+        this.app.use(express.json());
 
         this.app.disable("x-powered-by");
 
@@ -131,7 +133,7 @@ class WebServer {
 
         this.app.use("/api/v2/ntpclient/", new NTPClientRouter({config: this.config, ntpClient: options.ntpClient, validator: this.validator}).getRouter());
 
-        this.app.use("/api/v2/timers/", new TimerRouter({config: this.config, robot: this.robot, validator: this.validator}).getRouter());
+        this.app.use("/api/v2/timers/", new TimerRouter({config: this.config, robot: this.robot, validator: this.validator, scheduler: options.scheduler}).getRouter());
 
         this.app.use("/api/v2/system/", new SystemRouter({}).getRouter());
 
@@ -139,7 +141,7 @@ class WebServer {
 
         this.app.use("/api/v2/updater/", new UpdaterRouter({config: this.config, updater: options.updater, validator: this.validator}).getRouter());
 
-        this.app.use("/_ssdp/", new SSDPRouter({config: this.config, robot: this.robot}).getRouter());
+        this.app.use("/_ssdp/", new SSDPRouter({config: this.config, robot: this.robot, valetudoHelper: this.valetudoHelper}).getRouter());
 
         this.app.use(express.static(path.join(__dirname, "../../..", "frontend/build")));
 
@@ -246,7 +248,27 @@ class WebServer {
             spec = JSON.parse(fs.readFileSync(path.join(__dirname, "../res/valetudo.openapi.schema.json")).toString());
         } catch (e) {
             Logger.warn("Failed to load OpenApi spec. Swagger endpoint and payload validation will be unavailable.", e.message);
+
+            return;
         }
+
+
+        const capabilityRoutePathRegex = /\/api\/v2\/robot\/capabilities\/(?<capabilityName>[A-Za-z]+)/;
+        const supportedCapabilities = Object.keys(this.robot.capabilities);
+
+        Object.keys(spec.paths).forEach(pathName => {
+            const regexResult = capabilityRoutePathRegex.exec(pathName);
+            const capabilityName = regexResult?.groups?.capabilityName;
+
+            if (capabilityName !== undefined && !supportedCapabilities.includes(capabilityName)) {
+                delete(spec.paths[pathName]);
+            }
+        });
+
+        spec.tags = spec.tags.filter(tag => {
+            return !(tag.name.endsWith("Capability") && !supportedCapabilities.includes(tag.name));
+        });
+
 
         this.openApiSpec = spec;
     }

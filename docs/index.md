@@ -1,9 +1,8 @@
-<div align="center">
-    <img src="https://raw.githubusercontent.com/Hypfer/Valetudo/master/assets/logo/valetudo_logo_with_name.svg" width="800" alt="valetudo">
-    <p align="center"><h2>Free your vacuum from the cloud</h2></p>
+<div style="text-align: center;">
+  <h2>Free your vacuum from the cloud</h2>
 </div>
 
-Valetudo is the de-facto-standard open-source software solution for cloud-free vacuum robots empowering thousands of users.<br/>
+Valetudo is an opinionated software solution for cloud-free vacuum robots installed on thousands of robots.<br/>
 Since it was started in 2018, it has matured to a reliable fire-and-forget solution that just works.
 
 Valetudo is made, managed, maintained and more by me,
@@ -18,6 +17,8 @@ however judging by download counts and support group members, I'd guesstimate th
 If you want to learn more about why someone would want to use something like Valetudo, check out the [Why Valetudo?](https://valetudo.cloud/pages/general/why-valetudo.html) page.
 
 If you want to learn more about why someone would **not** want to use something like Valetudo, check out the [Why not Valetudo?](https://valetudo.cloud/pages/general/why-not-valetudo.html) page.
+
+To choose the right robot to buy, head over to [Buying supported robots](https://valetudo.cloud/pages/general/buying-supported-robots.html).
 
 If you want to learn more about why I'm building Valetudo, the answer is actually pretty simple:<br/>
 When I was looking for a vacuum robot for myself, I didn't find anything that matched what I was looking for.<br/>
@@ -43,27 +44,48 @@ Also, make sure to check out the companion apps section.
 ### Screenshots
 
 ### Phone/Mobile
-![image](https://user-images.githubusercontent.com/974410/143459816-0a5fb9e5-d690-483e-99b0-84c76ef11eaf.png)
-![image](https://user-images.githubusercontent.com/974410/143459878-184c7336-002c-4e04-a706-215499338fce.png)
+<img src="https://user-images.githubusercontent.com/974410/211155741-d6430660-a6b2-48ab-8ddc-2217328444de.png" width=360>
+<img src="https://user-images.githubusercontent.com/974410/211155635-fdfb5b2b-2c3d-4a49-a0ed-a40deb04708f.png" width=360>
 
-![image](https://user-images.githubusercontent.com/974410/152567792-73e4ba52-f39b-44fd-a0ae-18a5c4115e7f.png)
-![image](https://user-images.githubusercontent.com/974410/152567884-b4c06af8-3bfe-4c12-976e-2e424f86df56.png)
+<img src="https://user-images.githubusercontent.com/974410/211155650-7cac266c-ffeb-432d-8656-5241a5d6f227.png" width=360>
+<img src="https://user-images.githubusercontent.com/974410/211155656-d43ee25e-1ae6-432f-95ff-1a39d294828d.png" width=360>
 
 ### Tablet/Desktop
 
-![image](https://user-images.githubusercontent.com/974410/152569273-23c4ee7e-310b-40f7-8762-eed661547dff.png)
+![image](https://user-images.githubusercontent.com/974410/211155726-4ca46998-717a-49b4-a7d0-45b0467cc10a.png)
 
-![image](https://user-images.githubusercontent.com/974410/152568144-4b237999-4373-44e3-9b29-b6498d7db81e.png)
+![image](https://user-images.githubusercontent.com/974410/211155836-9199616a-efde-4238-91c4-24158ba67677.png)
 
-![image](https://user-images.githubusercontent.com/974410/152568471-c111328b-b3d5-4ea8-9a1f-21bb5ae987ca.png)
+![image](https://user-images.githubusercontent.com/974410/211155860-9926b126-d1fe-41b1-8c83-1af21bf8caf2.png)
 
-![image](https://user-images.githubusercontent.com/974410/138562111-3cbfe03c-7a19-4e57-9bfb-6b872239f432.png)
+![image](https://user-images.githubusercontent.com/974410/211155880-ff184776-86fe-4c2f-9556-4d556cfa12f4.png)
 
+### Further questions?
+[Valetudo Telegram group](https://t.me/+Wlt6LOE82dMwNmQy)
 
-### Join the Discussion
-* [Valetudo Telegram group](https://t.me/+uGuDHt0dNCVmODli)
-* \#valetudo on irc.libera.chat
+### Valetudo is a garden <a id="garden"></a>
+This project is the hobby of some random guy on the internet. There is no intent to commercialize it, grow it
+or expand the target audience of it. In fact, there is intent to explicitly not do that.
 
-### Expectation Management
-This project is the hobby of some random guy on the internet who really does not care about market share.<br/>
-It does what I want it to do, so I'm happy with it.
+Think of Valetudo as a privately-owned public garden. You can visit it any time for free and enjoy it.
+You can spend time there, and you can bring an infinite amount of friends with you to enjoy it.
+You can walk the pathways built there. You can sit on some patch of grass and maybe watch a Duck or something.
+You can leave a tip in the tip jar at the entrance if you really enjoy it and want to support it flourish.
+
+You can take inspiration from it and bring that home to your own garden, giving it a personal twist and adapting it as needed.
+You can even make friendly suggestions if you have a really good idea that ties into the vision that is already there.
+
+But, at the end of the day, you must understand that it is still privately-owned. You're on someone else's property
+over which you have no power at all. You will have to show the necessary respect. And - most importantly - you need to
+understand that letting you into this garden is a gift and should be treated as such.
+
+If you don't like this garden because you don't like how it's structured, or you feel like it's missing something, or maybe
+I choose the wrong flowers to plant over there that's fine. It's just not for you then. You can leave at any time.
+
+There is simply no ground to stand on to demand change to the garden. It doesn't matter if it would attract more people
+or if all the other gardens in town are doing something in a specific way. It doesn't matter if your idea of what gardens
+even are differs.<br/>
+This at the end of the day is simply private property with free public access as a gift to everyone.
+
+When it comes to software development, _everyone_ has access to infinite plots of undeveloped land that they can claim at any time.
+Therefore, a garden being build with a specific vision does not take away the ability for anyone else to build their own garden with a different vision.

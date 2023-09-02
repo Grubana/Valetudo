@@ -42,23 +42,37 @@ class MiioWifiConfigurationCapability extends LinuxWifiConfigurationCapability {
      */
     async setWifiConfiguration(wifiConfig) {
         if (
-            wifiConfig && wifiConfig.ssid && wifiConfig.credentials &&
-            wifiConfig.credentials.type === ValetudoWifiConfiguration.CREDENTIALS_TYPE.WPA2_PSK &&
-            wifiConfig.credentials.typeSpecificSettings && wifiConfig.credentials.typeSpecificSettings.password
+            wifiConfig?.ssid !== undefined &&
+            wifiConfig.credentials?.type === ValetudoWifiConfiguration.CREDENTIALS_TYPE.WPA2_PSK &&
+            wifiConfig.credentials.typeSpecificSettings?.password !== undefined
         ) {
-            //This command will only work when received on the local interface!
+            if (
+                !MiioWifiConfigurationCapability.IS_VALID_PARAMETER(wifiConfig.ssid) &&
+                wifiConfig.metaData.force !== true
+            ) {
+                throw new Error(`SSID must not contain any of the following characters: ${INVALID_CHARACTERS.join(" ")}`);
+            }
+
+            if (
+                !MiioWifiConfigurationCapability.IS_VALID_PARAMETER(wifiConfig.credentials.typeSpecificSettings.password) &&
+                wifiConfig.metaData.force !== true
+            ) {
+                throw new Error(`Password must not contain any of the following characters: ${INVALID_CHARACTERS.join(" ")}`);
+            }
+
+
             await this.robot.sendCommand(
                 "miIO.config_router",
                 {
                     "ssid": wifiConfig.ssid,
                     "passwd": wifiConfig.credentials.typeSpecificSettings.password,
-                    "uid": 0,
+                    "uid": 1337, // previously, this was 0, however unfortunately some firmwares of robots such as 0866 of roborock a38 validate it to be non-0
                     "cc": "de",
                     "country_domain": "de",
                     "config_type": "app"
                 },
                 {
-                    preferLocalInterface: true
+                    interface: "local" //This command will only work when received on the local interface!
                 }
             );
         } else {
@@ -66,5 +80,22 @@ class MiioWifiConfigurationCapability extends LinuxWifiConfigurationCapability {
         }
     }
 }
+
+MiioWifiConfigurationCapability.IS_VALID_PARAMETER = (password) => {
+    return !(
+        new RegExp(
+            `[${INVALID_CHARACTERS.join("")}]`
+        ).test(password)
+    );
+};
+
+const INVALID_CHARACTERS = [
+    ";",
+    "\\",
+    "/",
+    "#",
+    "'",
+    "\""
+];
 
 module.exports = MiioWifiConfigurationCapability;

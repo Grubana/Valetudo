@@ -25,6 +25,8 @@ class DreameZoneCleaningCapability extends ZoneCleaningCapability {
      * @param {number} options.miot_properties.additionalCleanupParameters.piid
      *
      * @param {number} options.zoneCleaningModeId
+     * 
+     * @param {number} [options.maxZoneCount]
      */
     constructor(options) {
         super(options);
@@ -33,16 +35,12 @@ class DreameZoneCleaningCapability extends ZoneCleaningCapability {
         this.miot_properties = options.miot_properties;
 
         this.zoneCleaningModeId = options.zoneCleaningModeId;
+        this.maxZoneCount = options.maxZoneCount ?? 1;
 
         this.helper = new DreameMiotHelper({robot: this.robot});
     }
 
-
-    /**
-     * @param {Array<import("../../../entities/core/ValetudoZone")>} valetudoZones
-     * @returns {Promise<void>}
-     */
-    async start(valetudoZones) {
+    async start(options) {
         const FanSpeedStateAttribute = this.robot.state.getFirstMatchingAttribute({
             attributeClass: entities.state.attributes.PresetSelectionStateAttribute.name,
             attributeType: entities.state.attributes.PresetSelectionStateAttribute.TYPE.FAN_SPEED
@@ -57,7 +55,7 @@ class DreameZoneCleaningCapability extends ZoneCleaningCapability {
 
         const zones = [];
 
-        valetudoZones.forEach((vZ, i) => {
+        options.zones.forEach((vZ, i) => {
             const pA = DreameMapParser.CONVERT_TO_DREAME_COORDINATES(vZ.points.pA.x, vZ.points.pA.y);
             const pC = DreameMapParser.CONVERT_TO_DREAME_COORDINATES(vZ.points.pC.x, vZ.points.pC.y);
 
@@ -68,7 +66,7 @@ class DreameZoneCleaningCapability extends ZoneCleaningCapability {
                 pC.x,
                 pC.y,
 
-                vZ.iterations,
+                options.iterations ?? 1,
                 fanSpeed,
                 waterGrade
             ]);
@@ -97,7 +95,7 @@ class DreameZoneCleaningCapability extends ZoneCleaningCapability {
         return {
             zoneCount: {
                 min: 1,
-                max: 1
+                max: this.maxZoneCount
             },
             iterationCount: {
                 min: 1,

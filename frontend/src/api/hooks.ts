@@ -14,7 +14,7 @@ import {
     fetchAutoEmptyDockAutoEmptyControlState,
     fetchCapabilities,
     fetchCarpetModeState,
-    fetchCombinedVirtualRestrictionsPropertiesProperties,
+    fetchCombinedVirtualRestrictionsProperties,
     fetchConsumableStateInformation,
     fetchCurrentStatistics,
     fetchCurrentStatisticsProperties,
@@ -29,6 +29,7 @@ import {
     fetchMQTTProperties,
     fetchNTPClientConfiguration,
     fetchNTPClientState,
+    fetchObstacleAvoidanceControlState,
     fetchPersistentDataState,
     fetchPresetSelections,
     fetchRobotInformation,
@@ -54,7 +55,7 @@ import {
     sendBasicControlCommand,
     sendCarpetModeEnable,
     sendCleanSegmentsCommand,
-    sendCleanTemporaryZonesCommand,
+    sendCleanZonesCommand,
     sendCombinedVirtualRestrictionsUpdate,
     sendConsumableReset,
     sendDoNotDisturbConfiguration,
@@ -67,6 +68,7 @@ import {
     sendMapReset,
     sendMQTTConfiguration,
     sendNTPClientConfiguration,
+    sendObstacleAvoidanceControlState,
     sendPersistentDataEnable,
     sendRenameSegmentCommand,
     sendSpeakerTestCommand,
@@ -92,6 +94,27 @@ import {
     fetchNetworkAdvertisementConfiguration,
     fetchNetworkAdvertisementProperties,
     sendNetworkAdvertisementConfiguration,
+    sendMopDockDryManualTriggerCommand,
+    sendMopDockCleanManualTriggerCommand,
+    MopDockCleanManualTriggerCommand,
+    MopDockDryManualTriggerCommand,
+    fetchWifiConfigurationProperties,
+    fetchWifiScan,
+    sendDismissWelcomeDialogAction,
+    sendRestoreDefaultConfigurationAction,
+    fetchUpdaterConfiguration,
+    sendUpdaterConfiguration,
+    fetchValetudoCustomizations,
+    sendValetudoCustomizations,
+    fetchConsumableProperties,
+    sendTimerAction,
+    fetchPetObstacleAvoidanceControlState,
+    sendPetObstacleAvoidanceControlState,
+    fetchCollisionAvoidantNavigationControlState,
+    sendCollisionAvoidantNavigationControlState,
+    fetchCarpetSensorModeProperties,
+    fetchCarpetSensorMode,
+    sendCarpetSensorMode,
 } from "./client";
 import {
     PresetSelectionState,
@@ -102,6 +125,7 @@ import {
 import { isAttribute } from "./utils";
 import {
     Capability,
+    CarpetSensorMode,
     CombinedVirtualRestrictionsUpdateRequestParameters,
     ConsumableId,
     DoNotDisturbConfiguration,
@@ -118,9 +142,13 @@ import {
     Point,
     SetLogLevelRequest,
     Timer,
+    UpdaterConfiguration,
+    ValetudoCustomizations,
     ValetudoEventInteractionContext,
+    ValetudoInformation,
     VoicePackManagementCommand,
-    Zone,
+    WifiConfiguration,
+    ZoneActionRequestParameters,
 } from "./types";
 import {MutationFunction} from "react-query/types/core/types";
 
@@ -128,6 +156,7 @@ enum CacheKey {
     Capabilities = "capabilities",
     Map = "map",
     Consumables = "consumables",
+    ConsumableProperties = "consumable_properties",
     Attributes = "attributes",
     PresetSelections = "preset_selections",
     ZoneProperties = "zone_properties",
@@ -156,19 +185,28 @@ enum CacheKey {
     Log = "log",
     LogLevel = "log_level",
     KeyLockInformation = "key_lock",
+    ObstacleAvoidance = "obstacle_avoidance",
+    PetObstacleAvoidance = "pet_obstacle_avoidance",
     AutoEmptyDockAutoEmpty = "auto_empty_dock_auto_empty",
     DoNotDisturb = "do_not_disturb",
     WifiStatus = "wifi_status",
+    WifiConfigurationProperties = "wifi_configuration_properties",
+    WifiScan = "wifi_scan",
     ManualControl = "manual_control",
     ManualControlProperties = "manual_control_properties",
     CombinedVirtualRestrictionsProperties = "combined_virtual_restrictions_properties",
+    UpdaterConfiguration = "updater_configuration",
     UpdaterState = "updater_state",
     CurrentStatistics = "current_statistics",
     CurrentStatisticsProperties = "current_statistics_properties",
     TotalStatistics = "total_statistics",
     TotalStatisticsProperties = "total_statistics_properties",
     Quirks = "quirks",
-    RobotProperties = "robot_properties"
+    RobotProperties = "robot_properties",
+    ValetudoCustomizations = "valetudo_customizations",
+    CollisionAvoidantNavigation = "collision_avoidant_navigation",
+    CarpetSensorMode = "carpet_sensor_mode",
+    CarpetSensorModeProperties = "carpet_sensor_mode_properties",
 }
 
 const useOnCommandError = (capability: Capability | string): ((error: unknown) => void) => {
@@ -297,7 +335,7 @@ export function useRobotStatusQuery(select?: (status: StatusState) => any) {
 }
 
 export const usePresetSelectionsQuery = (
-    capability: Capability.FanSpeedControl | Capability.WaterUsageControl
+    capability: Capability.FanSpeedControl | Capability.WaterUsageControl | Capability.OperationModeControl
 ) => {
     return useQuery(
         [CacheKey.PresetSelections, capability],
@@ -314,9 +352,10 @@ export const capabilityToPresetType: Record<Parameters<typeof usePresetSelection
     PresetSelectionState["type"]> = {
         [Capability.FanSpeedControl]: "fan_speed",
         [Capability.WaterUsageControl]: "water_grade",
+        [Capability.OperationModeControl]: "operation_mode",
     };
 export const usePresetSelectionMutation = (
-    capability: Capability.FanSpeedControl | Capability.WaterUsageControl
+    capability: Capability.FanSpeedControl | Capability.WaterUsageControl | Capability.OperationModeControl
 ) => {
     const queryClient = useQueryClient();
     const onError = useOnCommandError(capability);
@@ -386,15 +425,15 @@ export const useZonePropertiesQuery = () => {
     });
 };
 
-export const useCleanTemporaryZonesMutation = (
-    options?: UseMutationOptions<RobotAttribute[], unknown, Zone[]>
+export const useCleanZonesMutation = (
+    options?: UseMutationOptions<RobotAttribute[], unknown, ZoneActionRequestParameters>
 ) => {
     const queryClient = useQueryClient();
     const onError = useOnCommandError(Capability.ZoneCleaning);
 
     return useMutation(
-        (zones: Zone[]) => {
-            return sendCleanTemporaryZonesCommand(zones).then(fetchStateAttributes);
+        (parameters: ZoneActionRequestParameters) => {
+            return sendCleanZonesCommand(parameters).then(fetchStateAttributes);
         },
         {
             onError,
@@ -521,7 +560,10 @@ export const useLocateMutation = () => {
 };
 
 export const useConsumableStateQuery = () => {
-    return useQuery(CacheKey.Consumables, fetchConsumableStateInformation);
+    return useQuery(CacheKey.Consumables, fetchConsumableStateInformation, {
+        staleTime: 300_000,
+        refetchInterval: 300_000
+    });
 };
 
 const useValetudoFetchingMutation = <TData, TVariables>(onError: ((error: unknown) => void), cacheKey: CacheKey, mutationFn: MutationFunction<TData, TVariables>) => {
@@ -538,6 +580,12 @@ const useValetudoFetchingMutation = <TData, TVariables>(onError: ((error: unknow
             onError
         }
     );
+};
+
+export const useConsumablePropertiesQuery = () => {
+    return useQuery(CacheKey.ConsumableProperties, fetchConsumableProperties, {
+        staleTime: Infinity
+    });
 };
 
 export const useConsumableResetMutation = () => {
@@ -566,6 +614,42 @@ export const useValetudoInformationQuery = () => {
     return useQuery(CacheKey.ValetudoInformation, fetchValetudoInformation, {
         staleTime: Infinity,
     });
+};
+
+export const useDismissWelcomeDialogMutation = () => {
+    const queryClient = useQueryClient();
+    const onError = useOnSettingsChangeError("Welcome Dialog");
+
+    return useMutation(
+        () => {
+            return sendDismissWelcomeDialogAction().then(fetchValetudoInformation).then((state) => {
+                queryClient.setQueryData<ValetudoInformation>(CacheKey.ValetudoInformation, state, {
+                    updatedAt: Date.now(),
+                });
+            });
+        },
+        {
+            onError
+        }
+    );
+};
+
+export const useRestoreDefaultConfigurationMutation = () => {
+    const queryClient = useQueryClient();
+    const onError = useOnSettingsChangeError("Config Restore");
+
+    return useMutation(
+        () => {
+            return sendRestoreDefaultConfigurationAction().then(() => {
+                queryClient.refetchQueries().catch(() => {
+                    /*intentional*/
+                });
+            });
+        },
+        {
+            onError
+        }
+    );
 };
 
 export const useValetudoVersionQuery = () => {
@@ -710,6 +794,16 @@ export const useTimerModificationMutation = () => {
         CacheKey.Timers,
         (timer: Timer) => {
             return sendTimerUpdate(timer).then(fetchTimerInformation);
+        }
+    );
+};
+
+export const useTimerActionMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnSettingsChangeError("Timer"),
+        CacheKey.Timers,
+        (params: {timerId: string, timerAction: "execute_now"}) => {
+            return sendTimerAction(params.timerId, params.timerAction).then(fetchTimerInformation);
         }
     );
 };
@@ -876,6 +970,39 @@ export const useCarpetModeStateMutation = () => {
     );
 };
 
+export const useObstacleAvoidanceControlQuery = () => {
+    return useQuery(CacheKey.ObstacleAvoidance, fetchObstacleAvoidanceControlState, {
+        staleTime: Infinity
+    });
+};
+
+export const useObstacleAvoidanceControlMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnCommandError(Capability.ObstacleAvoidanceControl),
+        CacheKey.ObstacleAvoidance,
+        (enable: boolean) => {
+            return sendObstacleAvoidanceControlState(enable).then(fetchObstacleAvoidanceControlState);
+        }
+    );
+};
+
+export const usePetObstacleAvoidanceControlQuery = () => {
+    return useQuery(CacheKey.PetObstacleAvoidance, fetchPetObstacleAvoidanceControlState, {
+        staleTime: Infinity
+    });
+};
+
+export const usePetObstacleAvoidanceControlMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnCommandError(Capability.PetObstacleAvoidanceControl),
+        CacheKey.PetObstacleAvoidance,
+        (enable: boolean) => {
+            return sendPetObstacleAvoidanceControlState(enable).then(fetchPetObstacleAvoidanceControlState);
+        }
+    );
+};
+
+
 export const useAutoEmptyDockAutoEmptyControlQuery = () => {
     return useQuery(CacheKey.AutoEmptyDockAutoEmpty, fetchAutoEmptyDockAutoEmptyControlState, {
         staleTime: Infinity
@@ -888,6 +1015,22 @@ export const useAutoEmptyDockAutoEmptyControlMutation = () => {
         CacheKey.AutoEmptyDockAutoEmpty,
         (enable: boolean) => {
             return sendAutoEmptyDockAutoEmptyControlEnable(enable).then(fetchAutoEmptyDockAutoEmptyControlState);
+        }
+    );
+};
+
+export const useCollisionAvoidantNavigationControlQuery = () => {
+    return useQuery(CacheKey.CollisionAvoidantNavigation, fetchCollisionAvoidantNavigationControlState, {
+        staleTime: Infinity
+    });
+};
+
+export const useCollisionAvoidantNavigationControlMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnCommandError(Capability.CollisionAvoidantNavigation),
+        CacheKey.CollisionAvoidantNavigation,
+        (enable: boolean) => {
+            return sendCollisionAvoidantNavigationControlState(enable).then(fetchCollisionAvoidantNavigationControlState);
         }
     );
 };
@@ -914,7 +1057,15 @@ export const useWifiStatusQuery = () => {
     });
 };
 
-export const useWifiConfigurationMutation = () => {
+export const useWifiConfigurationPropertiesQuery = () => {
+    return useQuery(CacheKey.WifiConfigurationProperties, fetchWifiConfigurationProperties, {
+        staleTime: Infinity
+    });
+};
+
+export const useWifiConfigurationMutation = (
+    options?: UseMutationOptions<void, unknown, WifiConfiguration>
+) => {
     const {
         refetch: refetchWifiStatus,
     } = useWifiStatusQuery();
@@ -923,12 +1074,23 @@ export const useWifiConfigurationMutation = () => {
         sendWifiConfiguration,
         {
             onError: useOnCommandError(Capability.WifiConfiguration),
-            onSuccess() {
-                refetchWifiStatus().catch(() => {/*intentional*/});
+            async onSuccess(data, ...args) {
+                refetchWifiStatus().catch(() => {
+                    /*intentional*/
+                });
+
+                await options?.onSuccess?.(data, ...args);
             }
         }
     );
 };
+
+export const useWifiScanQuery = () => {
+    return useQuery(CacheKey.WifiScan, fetchWifiScan, {
+        staleTime: Infinity,
+    });
+};
+
 
 export const useManualControlStateQuery = () => {
     return useQuery(CacheKey.ManualControl, fetchManualControlState, {
@@ -954,7 +1116,7 @@ export const useManualControlInteraction = () => {
 };
 
 export const useCombinedVirtualRestrictionsPropertiesQuery = () => {
-    return useQuery(CacheKey.CombinedVirtualRestrictionsProperties, fetchCombinedVirtualRestrictionsPropertiesProperties, {
+    return useQuery(CacheKey.CombinedVirtualRestrictionsProperties, fetchCombinedVirtualRestrictionsProperties, {
         staleTime: Infinity
     });
 };
@@ -978,6 +1140,22 @@ export const useCombinedVirtualRestrictionsMutation = (
                 });
                 await options?.onSuccess?.(data, ...args);
             },
+        }
+    );
+};
+
+export const useUpdaterConfigurationQuery = () => {
+    return useQuery(CacheKey.UpdaterConfiguration, fetchUpdaterConfiguration, {
+        staleTime: Infinity,
+    });
+};
+
+export const useUpdaterConfigurationMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnSettingsChangeError("Updater"),
+        CacheKey.UpdaterConfiguration,
+        (updaterConfiguration: UpdaterConfiguration) => {
+            return sendUpdaterConfiguration(updaterConfiguration).then(fetchUpdaterConfiguration);
         }
     );
 };
@@ -1007,8 +1185,8 @@ export const useUpdaterCommandMutation = () => {
 
 export const useCurrentStatisticsQuery = () => {
     return useQuery(CacheKey.CurrentStatistics, fetchCurrentStatistics , {
-        staleTime: 60_000,
-        refetchInterval: 60_000
+        staleTime: 30_000,
+        refetchInterval: 30_000
     });
 };
 
@@ -1054,5 +1232,79 @@ export const useSetQuirkValueMutation = () => {
 export const useRobotPropertiesQuery = () => {
     return useQuery(CacheKey.RobotProperties, fetchRobotProperties, {
         staleTime: Infinity,
+    });
+};
+
+export const useMopDockCleanManualTriggerMutation = () => {
+    const queryClient = useQueryClient();
+    const onError = useOnCommandError(Capability.MopDockCleanManualTrigger);
+
+    return useMutation(
+        (command: MopDockCleanManualTriggerCommand) => {
+            return sendMopDockCleanManualTriggerCommand(command).then(fetchStateAttributes);
+        },
+        {
+            onError,
+            onSuccess(data) {
+                queryClient.setQueryData<RobotAttribute[]>(CacheKey.Attributes, data, {
+                    updatedAt: Date.now(),
+                });
+            },
+        }
+    );
+};
+
+export const useMopDockDryManualTriggerMutation = () => {
+    const queryClient = useQueryClient();
+    const onError = useOnCommandError(Capability.MopDockDryManualTrigger);
+
+    return useMutation(
+        (command: MopDockDryManualTriggerCommand) => {
+            return sendMopDockDryManualTriggerCommand(command).then(fetchStateAttributes);
+        },
+        {
+            onError,
+            onSuccess(data) {
+                queryClient.setQueryData<RobotAttribute[]>(CacheKey.Attributes, data, {
+                    updatedAt: Date.now(),
+                });
+            },
+        }
+    );
+};
+
+export const useValetudoCustomizationsQuery = () => {
+    return useQuery(CacheKey.ValetudoCustomizations, fetchValetudoCustomizations, {
+        staleTime: Infinity,
+    });
+};
+
+export const useValetudoCustomizationsMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnSettingsChangeError("Valetudo Customizations"),
+        CacheKey.ValetudoCustomizations,
+        (configuration: ValetudoCustomizations) => {
+            return sendValetudoCustomizations(configuration).then(fetchValetudoCustomizations);
+        }
+    );
+};
+
+export const useCarpetSensorModeQuery = () => {
+    return useQuery(CacheKey.CarpetSensorMode, fetchCarpetSensorMode);
+};
+
+export const useCarpetSensorModeMutation = () => {
+    return useValetudoFetchingMutation(
+        useOnCommandError(Capability.CarpetSensorModeControl),
+        CacheKey.CarpetSensorMode,
+        (mode: CarpetSensorMode) => {
+            return sendCarpetSensorMode({mode: mode}).then(fetchCarpetSensorMode);
+        }
+    );
+};
+
+export const useCarpetSensorModePropertiesQuery = () => {
+    return useQuery(CacheKey.CarpetSensorModeProperties, fetchCarpetSensorModeProperties, {
+        staleTime: Infinity
     });
 };

@@ -4,7 +4,6 @@ import {
     useUpdaterStateQuery
 } from "../api";
 import {
-    Refresh as RefreshIcon,
     SystemUpdateAlt as UpdaterIcon,
     Warning as ErrorIcon,
     Download as DownloadIcon,
@@ -15,7 +14,6 @@ import {
     UpdateDisabled as UpdaterDisabledIcon,
     CheckCircle as NoUpdateRequiredIcon,
     HourglassTop as BusyIcon,
-    Help as HelpIcon
 } from "@mui/icons-material";
 import {
     Accordion,
@@ -24,8 +22,7 @@ import {
     Box,
     Divider,
     Grid,
-    IconButton,
-    styled,
+    LinearProgress,
     Typography
 } from "@mui/material";
 import React from "react";
@@ -38,14 +35,8 @@ import ReactMarkdown from "react-markdown";
 import gfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import PaperContainer from "../components/PaperContainer";
-import HelpDialog from "../components/HelpDialog";
 import {UpdaterHelp} from "./res/UpdaterHelp";
-
-const StyledLoadingButton = styled(LoadingButton)(({theme}) => {
-    return {
-        minWidth: 0
-    };
-});
+import DetailPageHeaderRow from "../components/DetailPageHeaderRow";
 
 const Updater = (): JSX.Element => {
     const {
@@ -56,49 +47,21 @@ const Updater = (): JSX.Element => {
         refetch: refetchUpdaterState,
     } = useUpdaterStateQuery();
 
-    const [helpDialogOpen, setHelpDialogOpen] = React.useState(false);
-
     return (
         <PaperContainer>
             <Grid container direction="row">
                 <Box style={{width: "100%"}}>
-                    <Grid item container alignItems="center" spacing={1} justifyContent="space-between">
-                        <Grid item style={{display:"flex"}}>
-                            <Grid item style={{paddingRight: "8px"}}><UpdaterIcon/></Grid>
-                            <Grid item>
-                                <Typography>Updater</Typography>
-                            </Grid>
-                        </Grid>
-                        <Grid item>
-                            <Grid container>
-                                <Grid
-                                    item
-                                    style={{marginTop:"-0.125rem"}} //:(
-                                >
-                                    <IconButton
-                                        onClick={() => {
-                                            return setHelpDialogOpen(true);
-                                        }}
-                                        title="Help"
-                                    >
-                                        <HelpIcon/>
-                                    </IconButton>
-                                </Grid>
-                                <Grid item>
-                                    <StyledLoadingButton
-                                        loading={updaterStateFetching}
-                                        onClick={() => {
-                                            refetchUpdaterState();
-                                        }}
-                                        title="Refresh"
-                                    >
-                                        <RefreshIcon/>
-                                    </StyledLoadingButton>
-                                </Grid>
-                            </Grid>
-                        </Grid>
-                    </Grid>
-                    <Divider sx={{mt: 1}}/>
+                    <DetailPageHeaderRow
+                        title="Updater"
+                        icon={<UpdaterIcon/>}
+                        helpText={UpdaterHelp}
+                        onRefreshClick={() => {
+                            refetchUpdaterState().catch(() => {
+                                /* intentional */
+                            });
+                        }}
+                        isRefreshing={updaterStateFetching}
+                    />
 
                     <UpdaterStateComponent
                         state={updaterState}
@@ -107,13 +70,6 @@ const Updater = (): JSX.Element => {
                     />
                 </Box>
             </Grid>
-            <HelpDialog
-                dialogOpen={helpDialogOpen}
-                setDialogOpen={(open: boolean) => {
-                    setHelpDialogOpen(open);
-                }}
-                helpText={UpdaterHelp}
-            />
         </PaperContainer>
     );
 };
@@ -134,7 +90,7 @@ const UpdaterStateComponent : React.FunctionComponent<{ state: UpdaterState | un
     }
 
     const getIconForState = () : JSX.Element => {
-        if (state.busy) {
+        if (state.busy && state.__class !== "ValetudoUpdaterDownloadingState") {
             return <BusyIcon sx={{ fontSize: "3rem" }}/>;
         } else {
             switch (state.__class) {
@@ -157,7 +113,7 @@ const UpdaterStateComponent : React.FunctionComponent<{ state: UpdaterState | un
     };
 
     const getContentForState = () : JSX.Element | undefined => {
-        if (state.busy) {
+        if (state.busy && state.__class !== "ValetudoUpdaterDownloadingState") {
             return (
                 <Typography>The Updater is currently busy</Typography>
             );
@@ -165,14 +121,29 @@ const UpdaterStateComponent : React.FunctionComponent<{ state: UpdaterState | un
             switch (state.__class) {
                 case "ValetudoUpdaterErrorState":
                     return (
-                        <Typography color="red"> {state.message}</Typography>
+                        <Typography color="red">{state.message}</Typography>
                     );
                 case "ValetudoUpdaterDownloadingState":
                     return (
                         <>
-                            <Typography>Valetudo is currently downloading release {state.version}</Typography>
+                            <Typography>
+                                The Updater is currently downloading version
+                                <br/>
+                                <span
+                                    style={{
+                                        fontFamily: "\"JetBrains Mono\",monospace",
+                                        fontWeight: 200,
+                                        marginTop: "1rem"
+                                    }}
+                                >
+                                    {state.version}
+                                </span>
+                            </Typography>
                             <br/>
-                            <Typography>Please be patient...</Typography>
+                            <LinearProgress
+                                variant={state.metaData?.progress !== undefined ? "determinate" : "indeterminate"}
+                                value={state.metaData?.progress}
+                            />
                         </>
                     );
                 case "ValetudoUpdaterApprovalPendingState":
@@ -265,9 +236,8 @@ const UpdaterStateComponent : React.FunctionComponent<{ state: UpdaterState | un
                 {
                     state.__class === "ValetudoUpdaterApplyPendingState" && !state.busy &&
                     <Typography color="red" style={{marginTop:"1rem", width: "80%"}}>
-                        Please keep in mind that updating can be a dangerous operation.<br/>
-                        Make sure that you&apos;ve thoroughly read the changelog to be aware of possible breaking changes.<br/><br/>
-                        Also, during updates, you should always be prepared for some troubleshooting so please do not click apply if you currently don&apos;t have time for that.
+                        Please keep in mind that each update can require troubleshooting post-update.<br/>
+                        Make sure that you&apos;ve thoroughly read the changelog to be aware of possible breaking changes.
                     </Typography>
                 }
             </Grid>
@@ -315,34 +285,20 @@ const StartUpdateControls: React.FunctionComponent<{
 }> = ({
     busyState
 }) => {
-    const [dialogOpen, setDialogOpen] = React.useState(false);
     const {mutate: sendCommand, isLoading: commandExecuting} = useUpdaterCommandMutation();
 
     return (
-        <>
-            <LoadingButton
-                loading={commandExecuting}
-                variant="outlined"
-                disabled={busyState}
-                onClick={() => {
-                    setDialogOpen(true);
-                }}
-                sx={{mt: 1, mb: 1}}
-            >
-                Check for Updates
-            </LoadingButton>
-            <ConfirmationDialog
-                title="Check for Updates?"
-                text="Do you want to check for a new version of Valetudo?"
-                open={dialogOpen}
-                onClose={() => {
-                    setDialogOpen(false);
-                }}
-                onAccept={() => {
-                    sendCommand("check");
-                }}
-            />
-        </>
+        <LoadingButton
+            loading={commandExecuting}
+            variant="outlined"
+            disabled={busyState}
+            onClick={() => {
+                sendCommand("check");
+            }}
+            sx={{mt: 1, mb: 1}}
+        >
+            Check for Updates
+        </LoadingButton>
     );
 };
 

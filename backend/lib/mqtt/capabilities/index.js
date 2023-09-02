@@ -8,6 +8,8 @@ module.exports = {
     LocateCapabilityMqttHandle: require("./LocateCapabilityMqttHandle"),
     MapSegmentationCapabilityMqttHandle: require("./MapSegmentationCapabilityMqttHandle"),
     PresetSelectionCapabilityMqttHandle: require("./PresetSelectionCapabilityMqttHandle"),
+    SpeakerVolumeControlCapabilityMqttHandle: require("./SpeakerVolumeControlCapabilityMqttHandle"),
+    TotalStatisticsCapabilityMqttHandle: require("./TotalStatisticsCapabilityMqttHandle"),
     WifiConfigurationCapabilityMqttHandle: require("./WifiConfigurationCapabilityMqttHandle"),
     ZoneCleaningCapabilityMqttHandle: require("./ZoneCleaningCapabilityMqttHandle")
 };

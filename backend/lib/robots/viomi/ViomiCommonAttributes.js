@@ -1,14 +1,13 @@
 const ManualControlCapability = require("../../core/capabilities/ManualControlCapability");
 const stateAttrs = require("../../entities/state/attributes");
-const ValetudoSensor = require("../../entities/core/ValetudoSensor");
 
 // Common Viomi enums
 
 /** @enum {number} */
 const ViomiOperationMode = Object.freeze({
-    VACUUM: 0,
-    MIXED: 1,
-    MOP: 2,
+    [stateAttrs.PresetSelectionStateAttribute.MODE.VACUUM]: 0,
+    [stateAttrs.PresetSelectionStateAttribute.MODE.VACUUM_AND_MOP]: 1,
+    [stateAttrs.PresetSelectionStateAttribute.MODE.MOP]: 2,
 });
 
 /** @enum {number} */
@@ -35,23 +34,16 @@ const ViomiArea = Object.freeze({
 
 /** @enum {number} */
 const ViomiMovementMode = Object.freeze({
-    NORMAL_CLEANING: 0, // goes in straight lines with vacuum motor on
+    VACUUM: 0,          // goes in straight lines with vacuum motor on
     VACUUM_AND_MOP: 1,  // back and forth mopping movement with vacuum motor on
     OUTLINE: 2,         // only clean the rooms outline
-    MOP_NO_VACUUM: 3,   // same as VACUUM_AND_MOP, but the vacuum motor is turned off
+    MOP: 3,             // same as VACUUM_AND_MOP, but the vacuum motor is turned off
 });
 
 const ViomiZoneCleaningCommand = Object.freeze({
     STOP: 0,
     CLEAN_ZONE: 3
 });
-
-const ViomiSensorTypes = Object.freeze([
-    new ValetudoSensor({
-        type: ValetudoSensor.TYPE.ACCELEROMETER,
-        value: null,
-    }),
-]);
 
 const ViomiManualControlDirection = Object.freeze({
     [ManualControlCapability.MOVEMENT_COMMAND_TYPE.FORWARD]: 1,
@@ -83,7 +75,6 @@ module.exports = {
     ViomiManualControlDirection: ViomiManualControlDirection,
     ViomiMovementMode: ViomiMovementMode,
     ViomiZoneCleaningCommand: ViomiZoneCleaningCommand,
-    ViomiSensorTypes: ViomiSensorTypes,
     FAN_SPEEDS: FAN_SPEEDS,
     WATER_GRADES: WATER_GRADES
 };

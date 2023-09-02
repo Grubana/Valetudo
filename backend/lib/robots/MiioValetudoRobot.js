@@ -12,10 +12,10 @@ const Logger = require("../Logger");
 const MiioSocket = require("../miio/MiioSocket");
 const NotImplementedError = require("../core/NotImplementedError");
 const RetryWrapper = require("../miio/RetryWrapper");
-const Tools = require("../utils/Tools");
 const ValetudoRobot = require("../core/ValetudoRobot");
 
 const entities = require("../entities");
+const MiioDummycloudNotConnectedError = require("../miio/MiioDummycloudNotConnectedError");
 const stateAttrs = entities.state.attributes;
 
 class MiioValetudoRobot extends ValetudoRobot {
@@ -47,7 +47,7 @@ class MiioValetudoRobot extends ValetudoRobot {
                 return new MiioSocket({
                     socket: socket,
                     token: this.localSecret,
-                    deviceId: undefined,
+                    deviceId: this.deviceId,
                     rinfo: {address: this.ip, port: MiioSocket.PORT},
                     timeout: undefined,
                     name: "local",
@@ -72,14 +72,10 @@ class MiioValetudoRobot extends ValetudoRobot {
             }
         });
 
-        this.fdsUploadMutex = Semaphore(1);
-        this.mapPollingIntervals = {
-            default: 60,
-            active: this.config.get("embedded") === true && Tools.IS_LOWMEM_HOST() ? 4 : 2,
-            error: 30
-        };
+        this.fdsUploadSemaphore = Semaphore(2);
         this.mapPollMutex = Semaphore(1);
         this.mapPollTimeout = undefined;
+        this.postActiveStateMapPollCooldownCredits = 0;
         this.expressApp = express();
 
         this.fdsMockServer = http.createServer(this.expressApp);
@@ -90,7 +86,7 @@ class MiioValetudoRobot extends ValetudoRobot {
                 params: req.params
             });
 
-            this.fdsUploadMutex.take(() => {
+            this.fdsUploadSemaphore.take(() => {
                 const expectedSize = parseInt(req.header("content-length"));
                 let finished = false;
 
@@ -99,13 +95,13 @@ class MiioValetudoRobot extends ValetudoRobot {
                         finished = true;
 
                         res.end();
-                        req.socket.destroy();
+                        req.socket?.destroy();
 
                         Logger.warn("FDS upload timeout", {
                             query: req.query,
                             params: req.params
                         });
-                        this.fdsUploadMutex.leave();
+                        this.fdsUploadSemaphore.leave();
                     }, 3000);
 
 
@@ -151,7 +147,7 @@ class MiioValetudoRobot extends ValetudoRobot {
                         }).finally(() => {
                             if (finished !== true) {
                                 res.sendStatus(200);
-                                this.fdsUploadMutex.leave();
+                                this.fdsUploadSemaphore.leave();
                             }
                         });
                     });
@@ -159,8 +155,8 @@ class MiioValetudoRobot extends ValetudoRobot {
                     Logger.warn(`Received FDSMock upload request with a content-length of ${expectedSize}. Aborting.`);
 
                     res.end();
-                    req.socket.destroy();
-                    this.fdsUploadMutex.leave();
+                    req.socket?.destroy();
+                    this.fdsUploadSemaphore.leave();
                 }
             });
         });
@@ -232,7 +228,7 @@ class MiioValetudoRobot extends ValetudoRobot {
         }
 
         if (!cloudSecret && this.config.get("embedded") === true) {
-            cloudSecret = MiioValetudoRobot.READ_DEVICE_CONF(this.deviceConfPath)["key"];
+            cloudSecret = this.getCloudSecretFromFS();
         }
 
         if (cloudSecret && cloudSecret.length >= 32) {
@@ -356,14 +352,26 @@ class MiioValetudoRobot extends ValetudoRobot {
      * @param {object} options
      * @param {number=} options.retries
      * @param {number=} options.timeout custom timeout in milliseconds
-     * @param {boolean=} options.preferLocalInterface
-     * @returns {Promise<object>}
+     * @param {"local"|"cloud"=} options.interface
+     * @returns {Promise<Array|object|string>}
      */
     sendCommand(method, args = [], options = {}) {
-        if (this.dummyCloud.miioSocket.connected && options.preferLocalInterface !== true) {
-            return this.sendCloud({"method": method, "params": args}, options);
+        const msg = {"method": method, "params": args};
+
+        if (options.interface === "cloud") {
+            if (this.dummyCloud.miioSocket.connected) {
+                return this.sendCloud(msg, options);
+            } else {
+                throw new MiioDummycloudNotConnectedError(msg);
+            }
+        } else if (options.interface === "local") {
+            return this.localSocket.sendMessage(msg, options);
         } else {
-            return this.localSocket.sendMessage({"method": method, "params": args}, options);
+            if (this.dummyCloud.miioSocket.connected) {
+                return this.sendCloud(msg, options);
+            } else {
+                return this.localSocket.sendMessage(msg, options);
+            }
         }
     }
 
@@ -452,7 +460,7 @@ class MiioValetudoRobot extends ValetudoRobot {
      */
     pollMap() {
         this.mapPollMutex.take(() => {
-            let repollSeconds = this.mapPollingIntervals.default;
+            let repollSeconds = MiioValetudoRobot.MAP_POLLING_INTERVALS.DEFAULT;
 
             // Clear pending timeout, since we’re starting a new poll right now.
             if (this.mapPollTimeout) {
@@ -464,7 +472,7 @@ class MiioValetudoRobot extends ValetudoRobot {
             this.executeMapPoll().then((response) => {
                 repollSeconds = this.determineNextMapPollInterval(response);
             }).catch(() => {
-                repollSeconds = this.mapPollingIntervals.error;
+                repollSeconds = MiioValetudoRobot.MAP_POLLING_INTERVALS.ERROR;
             }).finally(() => {
                 this.mapPollTimeout = setTimeout(() => {
                     this.pollMap();
@@ -491,14 +499,36 @@ class MiioValetudoRobot extends ValetudoRobot {
      * @return {number} seconds
      */
     determineNextMapPollInterval(pollResponse) {
-        let repollSeconds = this.mapPollingIntervals.default;
+        let repollSeconds = MiioValetudoRobot.MAP_POLLING_INTERVALS.DEFAULT;
 
         let StatusStateAttribute = this.state.getFirstMatchingAttribute({
             attributeClass: stateAttrs.StatusStateAttribute.name
         });
 
+
+        let isActive = false;
+
         if (StatusStateAttribute && StatusStateAttribute.isActiveState) {
-            repollSeconds = this.mapPollingIntervals.active;
+            isActive = true;
+            this.postActiveStateMapPollCooldownCredits = 3;
+        }
+
+        if (!isActive && this.postActiveStateMapPollCooldownCredits > 0) {
+            // Pretend that we're still in an active state to ensure that we catch map updates e.g. after docking
+            isActive = true;
+            this.postActiveStateMapPollCooldownCredits--;
+        }
+
+
+        if (isActive) {
+            repollSeconds = MiioValetudoRobot.MAP_POLLING_INTERVALS.ACTIVE;
+
+            if (this.flags.lowmemHost) {
+                repollSeconds *= 2;
+            }
+            if (this.flags.hugeMap) {
+                repollSeconds *= 2;
+            }
         }
 
         return repollSeconds;
@@ -542,6 +572,8 @@ class MiioValetudoRobot extends ValetudoRobot {
             if (!parsedMap) {
                 Logger.warn("Failed to parse uploaded map");
             }
+        }).catch(e => {
+            Logger.warn("Failed to preprocess uploaded map");
         });
     }
 
@@ -557,6 +589,10 @@ class MiioValetudoRobot extends ValetudoRobot {
         await super.shutdown();
         await this.dummyCloud.shutdown();
         await this.localSocket.shutdown();
+    }
+
+    getCloudSecretFromFS() {
+        return MiioValetudoRobot.READ_DEVICE_CONF(this.deviceConfPath)["key"];
     }
 
     static READ_DEVICE_CONF(pathOnDisk) {
@@ -593,5 +629,11 @@ class MiioValetudoRobot extends ValetudoRobot {
 
 const DEVICE_CONF_KEY_VALUE_REGEX = /^(?<key>[A-Za-z\d:.]+)=(?<value>[A-Za-z\d:.]+)$/;
 const MAX_UPLOAD_FILESIZE = 4 * 1024 * 1024; // 4 MiB
+
+MiioValetudoRobot.MAP_POLLING_INTERVALS = Object.freeze({
+    DEFAULT: 60,
+    ACTIVE: 2,
+    ERROR: 30
+});
 
 module.exports = MiioValetudoRobot;

@@ -2,6 +2,7 @@ const ValetudoVoicePackOperationStatus = require("../../../entities/core/Valetud
 const VoicePackManagementCapability = require("../../../core/capabilities/VoicePackManagementCapability");
 
 const DreameMiotHelper = require("../DreameMiotHelper");
+const DreameMiotServices = require("../DreameMiotServices");
 const Logger = require("../../../Logger");
 
 /**
@@ -11,19 +12,14 @@ class DreameVoicePackManagementCapability extends VoicePackManagementCapability 
     /**
      * @param {object} options
      * @param {import("../DreameValetudoRobot")} options.robot
-     *
-     * @param {number} options.siid MIOT Service ID
-     * @param {number} options.active_voicepack_piid
-     * @param {number} options.voicepack_install_status_piid
-     * @param {number} options.install_voicepack_piid
      */
     constructor(options) {
         super(options);
 
-        this.siid = options.siid;
-        this.active_voicepack_piid = options.active_voicepack_piid;
-        this.voicepack_install_status_piid = options.voicepack_install_status_piid;
-        this.install_voicepack_piid = options.install_voicepack_piid;
+        this.siid = DreameMiotServices["GEN2"].AUDIO.SIID;
+        this.active_voicepack_piid = DreameMiotServices["GEN2"].AUDIO.PROPERTIES.ACTIVE_VOICEPACK.PIID;
+        this.voicepack_install_status_piid = DreameMiotServices["GEN2"].AUDIO.PROPERTIES.VOICEPACK_INSTALL_STATUS.PIID;
+        this.install_voicepack_piid = DreameMiotServices["GEN2"].AUDIO.PROPERTIES.INSTALL_VOICEPACK.PIID;
 
         this.helper = new DreameMiotHelper({robot: this.robot});
     }
@@ -56,7 +52,7 @@ class DreameVoicePackManagementCapability extends VoicePackManagementCapability 
             this.install_voicepack_piid,
             JSON.stringify({
                 id: typeof options.language === "string" ? options.language.toUpperCase() : "VA",
-                md5: options.hash, //MD5 is actually validated on dreame
+                md5: options.hash?.toLowerCase(), //MD5 is actually validated on dreame
                 url: options.url,
                 size: 1 //This doesn't need to be correct. it just needs to be set
             })

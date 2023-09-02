@@ -6,6 +6,7 @@
 const ComponentType = Object.freeze({
     ALARM_CONTROL_PANEL: "alarm_control_panel",
     BINARY_SENSOR: "binary_sensor",
+    BUTTON: "button",
     CAMERA: "camera",
     COVER: "cover",
     DEVICE_TRACKER: "device_tracker",
@@ -14,6 +15,7 @@ const ComponentType = Object.freeze({
     HVAC: "climate",
     LIGHT: "light",
     LOCK: "lock",
+    NUMBER: "number",
     SCENE: "scene",
     SELECT: "select",
     SENSOR: "sensor",

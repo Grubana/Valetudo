@@ -34,8 +34,47 @@ class ValetudoRouter {
     initRoutes() {
         this.router.get("/", (req, res) => {
             res.json({
-                embedded: this.config.get("embedded")
+                embedded: this.config.get("embedded"),
+                systemId: Tools.GET_HUMAN_READABLE_SYSTEM_ID(),
+                welcomeDialogDismissed: this.config.get("oobe").welcomeDialogDismissed
             });
+        });
+
+        this.router.put("/action", this.validator, (req, res) => {
+            try {
+                switch (req.body.action) {
+                    case "dismissWelcomeDialog": {
+                        const currentConf = this.config.get("oobe");
+
+                        if (currentConf.welcomeDialogDismissed !== true) {
+                            this.config.set("oobe", {...currentConf, welcomeDialogDismissed: true});
+                        }
+                        break;
+                    }
+                    case "restoreDefaultConfiguration": {
+                        if (this.config.get("embedded") === true) {
+                            this.config.reset();
+                        } else {
+                            // noinspection ExceptionCaughtLocallyJS
+                            throw new Error("Refusing to restore config to defaults as we're not embedded.");
+                        }
+
+                        break;
+                    }
+                    default:
+                        // noinspection ExceptionCaughtLocallyJS
+                        throw new Error("Invalid action");
+                }
+
+                res.sendStatus(200);
+            } catch (err) {
+                Logger.warn(`${this.constructor.name}: Error while handling route "${req.path}"`, {
+                    body: req.body,
+                    message: err.message
+                });
+
+                res.status(500).json(err.message);
+            }
         });
 
         this.router.get("/version", (req, res) => {
@@ -70,7 +109,7 @@ class ValetudoRouter {
         });
 
         this.router.get("/config/interfaces/mqtt", (req, res) => {
-            let mqttConfig = Tools.CLONE(this.config.get("mqtt"));
+            let mqttConfig = structuredClone(this.config.get("mqtt"));
 
             MQTT_CONFIG_PRIVATE_PATHS.forEach(path => {
                 if (nestedProperty.get(mqttConfig, path)) {
@@ -82,7 +121,7 @@ class ValetudoRouter {
         });
 
         this.router.put("/config/interfaces/mqtt", this.validator, (req, res) => {
-            let mqttConfig = req.body;
+            let mqttConfig = ValetudoRouter.MAP_MQTT_CONFIG(req.body);
             let oldConfig = this.config.get("mqtt");
 
 
@@ -127,7 +166,24 @@ class ValetudoRouter {
             } else {
                 res.sendStatus(400);
             }
+        });
 
+        this.router.get("/config/customizations", (req, res) => {
+            const valetudoConfig = this.config.get("valetudo");
+
+            res.json(valetudoConfig.customizations);
+        });
+
+        this.router.put("/config/customizations", this.validator, (req, res) => {
+            if (typeof req.body.friendlyName === "string") {
+                const valetudoConfig = this.config.get("valetudo");
+                valetudoConfig.customizations.friendlyName = req.body.friendlyName;
+                this.config.set("valetudo", valetudoConfig);
+
+                res.sendStatus(200);
+            } else {
+                res.sendStatus(400);
+            }
         });
     }
 
@@ -175,6 +231,52 @@ class ValetudoRouter {
         Object.values(this.sseHubs).forEach(hub => {
             hub.shutdown();
         });
+    }
+
+    static MAP_MQTT_CONFIG(obj) {
+        return {
+            enabled: obj.enabled,
+            connection: {
+                host: obj.connection.host,
+                port: obj.connection.port,
+                tls: {
+                    enabled: obj.connection.tls.enabled,
+                    ca: obj.connection.tls.ca,
+                    ignoreCertificateErrors: obj.connection.tls.ignoreCertificateErrors
+                },
+                authentication: {
+                    credentials: {
+                        enabled: obj.connection.authentication.credentials.enabled,
+                        username: obj.connection.authentication.credentials.username,
+                        password: obj.connection.authentication.credentials.password
+                    },
+                    clientCertificate: {
+                        enabled: obj.connection.authentication.clientCertificate.enabled,
+                        certificate: obj.connection.authentication.clientCertificate.certificate,
+                        key: obj.connection.authentication.clientCertificate.key
+                    }
+                }
+            },
+            identity: {
+                identifier: obj.identity.identifier
+            },
+            customizations: {
+                topicPrefix: obj.customizations.topicPrefix,
+                provideMapData: obj.customizations.provideMapData
+            },
+            interfaces: {
+                homie: {
+                    enabled: obj.interfaces.homie.enabled,
+                    addICBINVMapProperty: obj.interfaces.homie.addICBINVMapProperty,
+                    cleanAttributesOnShutdown: obj.interfaces.homie.cleanAttributesOnShutdown
+                },
+                homeassistant: {
+                    enabled: obj.interfaces.homeassistant.enabled,
+                    cleanAutoconfOnShutdown: obj.interfaces.homeassistant.cleanAutoconfOnShutdown
+                }
+            },
+            optionalExposedCapabilities: Array.isArray(obj.optionalExposedCapabilities) ? [...new Set(obj.optionalExposedCapabilities)] : []
+        };
     }
 }
 

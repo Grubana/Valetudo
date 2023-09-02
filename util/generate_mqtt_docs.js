@@ -8,6 +8,7 @@ const RobotStateNodeMqttHandle = require("../backend/lib/mqtt/handles/RobotState
 const MapNodeMqttHandle = require("../backend/lib/mqtt/handles/MapNodeMqttHandle");
 const MockConsumableMonitoringCapability = require("../backend/lib/robots/mock/capabilities/MockConsumableMonitoringCapability");
 const ConsumableStateAttribute = require("../backend/lib/entities/state/attributes/ConsumableStateAttribute");
+const ValetudoMapSegment = require("../backend/lib/entities/core/ValetudoMapSegment");
 const PropertyMqttHandle = require("../backend/lib/mqtt/handles/PropertyMqttHandle");
 const DataType = require("../backend/lib/mqtt/homie/DataType");
 const HassController = require("../backend/lib/mqtt/homeassistant/HassController");
@@ -137,6 +138,11 @@ function keyFn(key) {
 }
 
 
+ConsumableMonitoringCapabilityMqttHandle.prototype.genConsumableFriendlyName = (type, subType) => {
+    return `${type}`
+}
+
+
 class FakeMqttController extends MqttController {
     // @ts-ignore
     constructor() {
@@ -158,10 +164,30 @@ class FakeMqttController extends MqttController {
                 ]
             };
         }
+        
+        robot.state.map.getSegments = () => {
+            return [
+                new ValetudoMapSegment({
+                    id: "20",
+                    name: "Kitchen"
+                }),
+                new ValetudoMapSegment({
+                    id: "18",
+                    name: "Bathroom"
+                }),
+                new ValetudoMapSegment({
+                    id: "16",
+                    name: "Hallway"
+                }),
+            ]
+        }
 
         super({
             robot: robot,
-            config: fakeConfig
+            config: fakeConfig,
+            valetudoHelper: {
+                onFriendlyNameChanged: () => {}
+            }
         });
 
         this.enabled = true;
@@ -173,23 +199,9 @@ class FakeMqttController extends MqttController {
             controller: this,
             baseTopic: "<TOPIC PREFIX>",
             topicName: "<IDENTIFIER>",
-            friendlyName: "Robot"
+            friendlyName: "Robot",
+            optionalExposedCapabilities: this.getOptionalExposableCapabilities()
         });
-
-        //          __.--,
-        //     ,--'~-.,;=/
-        //    {  /,”” ‘ |
-        //     `|\_ (@\(@\_
-        //      \(  _____(./
-        //      | `-~--~-‘\
-        //      | /   /  , \
-        //      | |   (\  \  \
-        //     _\_|.-‘` `’| ,-= )
-        //    (_  ,\ ____  \  ,/
-        //      \  |--===--(,,/
-        //       ```========-/
-        //         \_______ /
-        //  NOBODY TOUCH MA DELICIOUS SPAGHETTI 🍝🍝🍝
 
         this.generatePromise = new Promise((resolve, reject) => {
             this.resolveGenerate = resolve;
@@ -251,6 +263,8 @@ class FakeMqttController extends MqttController {
     }
 
     async generateDocs() {
+        this.currentConfig.optionalExposedCapabilities = this.getOptionalExposableCapabilities();
+        
         await this.reconfigure(async () => {
             await this.robotHandle.configure();
         }, {
@@ -261,7 +275,7 @@ class FakeMqttController extends MqttController {
 
         // Give time for the status attributes to propagate
         setTimeout(() => {
-            this.setState("sentinel").then();
+            this.setState("sentinel").catch(err => {console.error(err)});
         }, 500);
 
         // Promise resolved/rejected by doGenerateDocs(), in turn called when Homie state == ready by setState().
@@ -295,7 +309,7 @@ class FakeMqttController extends MqttController {
         let markdown = "";
 
         // Inject consumable friendly names since we're not using the standard ones
-        if (handle instanceof PropertyMqttHandle && handle.parent instanceof ConsumableMonitoringCapabilityMqttHandle && handle.topicName !== "refresh") {
+        if (handle instanceof PropertyMqttHandle && handle.parent instanceof ConsumableMonitoringCapabilityMqttHandle && !handle.topicName.endsWith("reset")) {
             if (handle.getBaseTopic().endsWith("<CONSUMABLE-MINUTES>")) {
                 handle.friendlyName = "Consumable (minutes)";
                 handle.hassComponents[0].friendlyName = "Consumable (minutes)";
@@ -345,9 +359,13 @@ class FakeMqttController extends MqttController {
             attributes.push("Device");
         }
         if (handle instanceof CapabilityMqttHandle) {
-            attributes.push(`capability: [${handle.capability.getType()}](/pages/general/capabilities-overview.html#${this.generateAnchor(handle.capability.getType())})`);
+            attributes.push(`capability: [${handle.capability.getType()}](/pages/usage/capabilities-overview.html#${this.generateAnchor(handle.capability.getType())})`);
         }
         markdown += `*${attributes.join(", ")}*` + "\n\n";
+        
+        if (handle.constructor.OPTIONAL === true) {
+            markdown += `**Note:** This is an optional exposed capability handle and thus will only be available via MQTT if enabled in the Valetudo configuration.\n\n`;
+        }
 
         if (handle.helpText) {
             markdown += handle.helpText + "\n\n";
@@ -595,8 +613,20 @@ class FakeMqttController extends MqttController {
     }
 
 
-    isInitialized() {
-        return this.docsGenerated;
+    get isInitialized() {
+        const stack = new Error().stack;
+        
+        // Now this is some major jank engineering
+        if (
+            stack.split("\n").find(line => {
+                return line.includes("MapNodeMqttHandle") && line.includes("PropertyMqttHandle.getter")
+            }) &&
+            !stack.includes("MapNodeMqttHandle.getMapData")
+        ) {
+            return true;
+        }
+          
+        return !!this.docsGenerated;
     }
 
     async setState(state) {

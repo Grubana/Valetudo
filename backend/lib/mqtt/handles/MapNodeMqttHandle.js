@@ -74,7 +74,7 @@ class MapNodeMqttHandle extends NodeMqttHandle {
                 datatype: DataType.STRING,
                 format: "json",
                 getter: async () => {
-                    if (this.robot.state.map === null || !(this.controller.currentConfig.customizations.provideMapData ?? true)|| !this.controller.isInitialized()) {
+                    if (this.robot.state.map === null || !(this.controller.currentConfig.customizations.provideMapData ?? true)|| !this.controller.isInitialized) {
                         return {};
                     }
 
@@ -83,7 +83,9 @@ class MapNodeMqttHandle extends NodeMqttHandle {
                         res[segment.id] = segment.name ?? segment.id;
                     }
 
-                    await HassAnchor.getAnchor(HassAnchor.ANCHOR.MAP_SEGMENTS_LEN).post(Object.keys(res).length);
+                    await this.controller.hassAnchorProvider.getAnchor(
+                        HassAnchor.ANCHOR.MAP_SEGMENTS_LEN
+                    ).post(Object.keys(res).length);
 
                     return res;
                 },
@@ -97,15 +99,21 @@ class MapNodeMqttHandle extends NodeMqttHandle {
                             name: "MapSegments",
                             friendlyName: "Map segments",
                             componentType: ComponentType.SENSOR,
-                            baseTopicReference: HassAnchor.getTopicReference(HassAnchor.REFERENCE.HASS_MAP_SEGMENTS_STATE),
+                            baseTopicReference: this.controller.hassAnchorProvider.getTopicReference(
+                                HassAnchor.REFERENCE.HASS_MAP_SEGMENTS_STATE
+                            ),
                             autoconf: {
-                                state_topic: HassAnchor.getTopicReference(HassAnchor.REFERENCE.HASS_MAP_SEGMENTS_STATE),
+                                state_topic: this.controller.hassAnchorProvider.getTopicReference(
+                                    HassAnchor.REFERENCE.HASS_MAP_SEGMENTS_STATE
+                                ),
                                 icon: "mdi:vector-selection",
                                 json_attributes_topic: prop.getBaseTopic(),
                                 json_attributes_template: "{{ value }}"
                             },
                             topics: {
-                                "": HassAnchor.getAnchor(HassAnchor.ANCHOR.MAP_SEGMENTS_LEN)
+                                "": this.controller.hassAnchorProvider.getAnchor(
+                                    HassAnchor.ANCHOR.MAP_SEGMENTS_LEN
+                                )
                             }
                         })
                     );
@@ -159,8 +167,10 @@ class MapNodeMqttHandle extends NodeMqttHandle {
      * @public
      */
     onMapUpdated() {
-        if (this.controller.isInitialized()) {
-            this.refresh().then();
+        if (this.controller.isInitialized) {
+            this.refresh().catch(err => {
+                Logger.error("Error during MQTT handle refresh", err);
+            });
         }
     }
 
@@ -170,7 +180,7 @@ class MapNodeMqttHandle extends NodeMqttHandle {
      * @return {Promise<Buffer|null>}
      */
     async getMapData(wrapInPng) {
-        if (this.robot.state.map === null || !(this.controller.currentConfig.customizations.provideMapData ?? true) || !this.controller.isInitialized()) {
+        if (this.robot.state.map === null || !(this.controller.currentConfig.customizations.provideMapData ?? true) || !this.controller.isInitialized) {
             return null;
         }
         const robot = this.robot;
@@ -229,8 +239,8 @@ const PNG_WRAPPER = {
     TEXT_CHUNK_METADATA: Buffer.from("ValetudoMap\0\0"),
     IMAGE: fs.readFileSync(path.join(__dirname, "../../res/valetudo_home_assistant_mqtt_wrapper.png"))
 };
-PNG_WRAPPER.IMAGE_WITHOUT_END_CHUNK = PNG_WRAPPER.IMAGE.slice(0, PNG_WRAPPER.IMAGE.length - 12);
+PNG_WRAPPER.IMAGE_WITHOUT_END_CHUNK = PNG_WRAPPER.IMAGE.subarray(0, PNG_WRAPPER.IMAGE.length - 12);
 //The PNG IEND chunk is always the last chunk and consists of a 4-byte length, the 4-byte chunk type, 0-byte chunk data and a 4-byte crc
-PNG_WRAPPER.END_CHUNK = PNG_WRAPPER.IMAGE.slice(PNG_WRAPPER.IMAGE.length - 12);
+PNG_WRAPPER.END_CHUNK = PNG_WRAPPER.IMAGE.subarray(PNG_WRAPPER.IMAGE.length - 12);
 
 module.exports = MapNodeMqttHandle;

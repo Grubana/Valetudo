@@ -3,9 +3,12 @@
     <p align="center"><h2>Free your vacuum from the cloud</h2></p>
 </div>
 
-Valetudo is a cloud replacement for vacuum robots enabling local-only operation. It is not a custom firmware.
-That means that it cannot change anything about how the robot operates.
+Valetudo is a cloud replacement for vacuum robots enabling local-only operation. It is not a custom firmware.<br/>
+Here's a diagram illustrating the core operation principle:
 
+[<img src="https://github.com/Hypfer/valetudo/raw/master/docs/_pages/general/img/operation_principle.png" height=450>](https://github.com/Hypfer/valetudo/raw/master/docs/_pages/general/img/operation_principle.png)
+
+Because Valetudo is not a custom firmware, it cannot change anything about how the robot operates.<br/>
 What it can do however is protect your data and enable you to connect your robot
 to your home automation system without having to detour through a vendor cloud, which,
 apart from the whole data problematic, might not be reachable due to your internet connection
@@ -24,35 +27,38 @@ Furthermore, there's a **REST-interface** documented with **Swagger UI** as well
 With support for both **Homie** and **Home Assistant Autodiscovery** for MQTT, you should be able to connect Valetudo to
 the open-source smarthome software of your choice.
 
-There's also [an android companion app](https://valetudo.cloud/pages/companion_apps/valetudo_companion.html) which helps
-setting-up your newly-rooted vacuum.
-
-
-For more information, check out the [getting started guide](https://valetudo.cloud/pages/general/getting-started.html) 
+For more information, check out the [newcomer guide](https://valetudo.cloud/pages/general/newcomer-guide.html),
+the [getting started guide](https://valetudo.cloud/pages/general/getting-started.html) 
 and also the docs in general at [https://valetudo.cloud](https://valetudo.cloud)
 
-There, you will also find a list of [supported robots](https://valetudo.cloud/pages/general/supported-robots.html).
+There, you will find a list of [supported robots](https://valetudo.cloud/pages/general/supported-robots.html).
 
 ## Screenshots
 
 ### Phone/Mobile
-![image](https://user-images.githubusercontent.com/974410/143459816-0a5fb9e5-d690-483e-99b0-84c76ef11eaf.png)
-![image](https://user-images.githubusercontent.com/974410/143459878-184c7336-002c-4e04-a706-215499338fce.png)
+<img src="https://user-images.githubusercontent.com/974410/211155741-d6430660-a6b2-48ab-8ddc-2217328444de.png" width=360> <img src="https://user-images.githubusercontent.com/974410/211155635-fdfb5b2b-2c3d-4a49-a0ed-a40deb04708f.png" width=360>
 
-![image](https://user-images.githubusercontent.com/974410/152567792-73e4ba52-f39b-44fd-a0ae-18a5c4115e7f.png)
-![image](https://user-images.githubusercontent.com/974410/152567884-b4c06af8-3bfe-4c12-976e-2e424f86df56.png)
+<img src="https://user-images.githubusercontent.com/974410/211155650-7cac266c-ffeb-432d-8656-5241a5d6f227.png" width=360> <img src="https://user-images.githubusercontent.com/974410/211155656-d43ee25e-1ae6-432f-95ff-1a39d294828d.png" width=360>
 
 ### Tablet/Desktop
 
-![image](https://user-images.githubusercontent.com/974410/152569273-23c4ee7e-310b-40f7-8762-eed661547dff.png)
+![image](https://user-images.githubusercontent.com/974410/211155726-4ca46998-717a-49b4-a7d0-45b0467cc10a.png)
 
-![image](https://user-images.githubusercontent.com/974410/152568144-4b237999-4373-44e3-9b29-b6498d7db81e.png)
+![image](https://user-images.githubusercontent.com/974410/211155836-9199616a-efde-4238-91c4-24158ba67677.png)
 
-![image](https://user-images.githubusercontent.com/974410/152568471-c111328b-b3d5-4ea8-9a1f-21bb5ae987ca.png)
+![image](https://user-images.githubusercontent.com/974410/211155860-9926b126-d1fe-41b1-8c83-1af21bf8caf2.png)
 
-![image](https://user-images.githubusercontent.com/974410/138562111-3cbfe03c-7a19-4e57-9bfb-6b872239f432.png)
+![image](https://user-images.githubusercontent.com/974410/211155880-ff184776-86fe-4c2f-9556-4d556cfa12f4.png)
 
 
-## Join the Discussion
-* [Valetudo Telegram group](https://t.me/+5tDZXizi1xEyZTBi)
-* \#valetudo on irc.libera.chat
+
+## Further questions?
+[Valetudo Telegram group](https://t.me/+wtIVqHUXoWljMDQy)
+
+
+## Honourable mentions
+
+Valetudo and its companion applications are developed using JetBrains IDEs such as [WebStorm](https://www.jetbrains.com/webstorm/).
+Licenses for those have been provided for free by JetBrains to the project in context of [their open source support program](https://jb.gg/OpenSourceSupport) since multiple years now.
+
+Thanks a lot for that!

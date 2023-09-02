@@ -1,10 +1,10 @@
 const CapabilityMqttHandle = require("./CapabilityMqttHandle");
-const Commands = require("../common/Commands");
 const ComponentType = require("../homeassistant/ComponentType");
 const DataType = require("../homie/DataType");
 const EntityCategory = require("../homeassistant/EntityCategory");
 const HassAnchor = require("../homeassistant/HassAnchor");
 const InLineHassComponent = require("../homeassistant/components/InLineHassComponent");
+const Logger = require("../../Logger");
 const PropertyMqttHandle = require("../handles/PropertyMqttHandle");
 const Unit = require("../common/Unit");
 const ValetudoDataPoint = require("../../entities/core/ValetudoDataPoint");
@@ -19,23 +19,12 @@ class CurrentStatisticsCapabilityMqttHandle extends CapabilityMqttHandle {
      */
     constructor(options) {
         super(Object.assign(options, {
-            friendlyName: "Current Statistics"
+            friendlyName: "Current Statistics",
+            helpMayChange: {
+                "Properties": "Available statistics depend on the robot model.",
+            }
         }));
         this.capability = options.capability;
-
-        this.registerChild(
-            new PropertyMqttHandle({
-                parent: this,
-                controller: this.controller,
-                topicName: "refresh",
-                friendlyName: "Refresh current statistics",
-                datatype: DataType.ENUM,
-                format: Commands.BASIC.PERFORM,
-                setter: async (value) => {
-                    await this.refresh();
-                }
-            })
-        );
 
         this.capability.getProperties().availableStatistics.forEach(availableStatistic => {
             switch (availableStatistic) {
@@ -49,7 +38,9 @@ class CurrentStatisticsCapabilityMqttHandle extends CapabilityMqttHandle {
                             datatype: DataType.INTEGER,
                             unit: Unit.SECONDS,
                             getter: async () => {
-                                return HassAnchor.getAnchor(HassAnchor.ANCHOR.CURRENT_STATISTICS_TIME).getValue();
+                                return this.controller.hassAnchorProvider.getAnchor(
+                                    HassAnchor.ANCHOR.CURRENT_STATISTICS_TIME
+                                ).getValue();
                             },
                             helpText: "This handle returns the current statistics time in seconds"
                         }).also((prop) => {
@@ -84,7 +75,9 @@ class CurrentStatisticsCapabilityMqttHandle extends CapabilityMqttHandle {
                             datatype: DataType.INTEGER,
                             unit: Unit.SQUARE_CENTIMETER,
                             getter: async () => {
-                                return HassAnchor.getAnchor(HassAnchor.ANCHOR.CURRENT_STATISTICS_AREA).getValue();
+                                return this.controller.hassAnchorProvider.getAnchor(
+                                    HassAnchor.ANCHOR.CURRENT_STATISTICS_AREA
+                                ).getValue();
                             }
                         }).also((prop) => {
                             this.controller.withHass((hass => {
@@ -112,21 +105,27 @@ class CurrentStatisticsCapabilityMqttHandle extends CapabilityMqttHandle {
     }
 
     async refresh() {
-        const currentStatistics = await this.capability.getStatistics();
+        const totalStatistics = await this.capability.getStatistics();
 
-        for (const point of currentStatistics) {
-            switch (point.type) {
-                case ValetudoDataPoint.TYPES.TIME:
-                    await HassAnchor.getAnchor(HassAnchor.ANCHOR.CURRENT_STATISTICS_TIME).post(point.value);
-                    break;
-                case ValetudoDataPoint.TYPES.AREA:
-                    await HassAnchor.getAnchor(HassAnchor.ANCHOR.CURRENT_STATISTICS_AREA).post(point.value);
-                    break;
+        for (const point of totalStatistics) {
+            const anchorId = DATA_POINT_TYPE_TO_ANCHOR_ID_MAPPING[point.type];
+
+            if (anchorId) {
+                await this.controller.hassAnchorProvider.getAnchor(anchorId).post(point.value);
+            } else {
+                Logger.warn(`No anchor found for CurrentStatistics DataPointType ${point.type}`);
             }
         }
 
         await super.refresh();
     }
 }
+
+const DATA_POINT_TYPE_TO_ANCHOR_ID_MAPPING = {
+    [ValetudoDataPoint.TYPES.TIME]: HassAnchor.ANCHOR.CURRENT_STATISTICS_TIME,
+    [ValetudoDataPoint.TYPES.AREA]: HassAnchor.ANCHOR.CURRENT_STATISTICS_AREA,
+};
+
+CurrentStatisticsCapabilityMqttHandle.OPTIONAL = true;
 
 module.exports = CurrentStatisticsCapabilityMqttHandle;

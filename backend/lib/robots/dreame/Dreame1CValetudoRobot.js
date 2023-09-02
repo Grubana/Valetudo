@@ -5,6 +5,7 @@ const DreameValetudoRobot = require("./DreameValetudoRobot");
 const entities = require("../../entities");
 const Logger = require("../../Logger");
 const MiioValetudoRobot = require("../MiioValetudoRobot");
+const ValetudoRestrictedZone = require("../../entities/core/ValetudoRestrictedZone");
 const ValetudoSelectionPreset = require("../../entities/core/ValetudoSelectionPreset");
 
 const stateAttrs = entities.state.attributes;
@@ -34,7 +35,6 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
             )
         );
 
-        this.lastMapPoll = new Date(0);
         this.isCharging = false;
 
         this.registerCapability(new capabilities.Dreame1CBasicControlCapability({
@@ -128,6 +128,10 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
 
         this.registerCapability(new capabilities.DreameCombinedVirtualRestrictionsCapability({
             robot: this,
+            supportedRestrictedZoneTypes: [
+                ValetudoRestrictedZone.TYPE.REGULAR,
+                ValetudoRestrictedZone.TYPE.MOP
+            ],
             miot_actions: {
                 map_edit: {
                     siid: MIOT_SERVICES.MAP.SIID,
@@ -363,12 +367,16 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
                     }
                 });
 
-                this.sendCloud({id: msg.id, "result":"ok"});
+                this.sendCloud({id: msg.id, "result":"ok"}).catch((err) => {
+                    Logger.warn("Error while sending cloud ack", err);
+                });
                 return true;
             }
             case "props":
                 if (msg.params && msg.params.ota_state) {
-                    this.sendCloud({id: msg.id, "result":"ok"});
+                    this.sendCloud({id: msg.id, "result":"ok"}).catch((err) => {
+                        Logger.warn("Error while sending cloud ack", err);
+                    });
                     return true;
                 }
                 break;
@@ -382,11 +390,15 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
                                 value: a.value
                             };
                         }));
-                        this.sendCloud({id: msg.id, "result":"ok"});
+                        this.sendCloud({id: msg.id, "result":"ok"}).catch((err) => {
+                            Logger.warn("Error while sending cloud ack", err);
+                        });
                         break;
                     default:
                         Logger.debug("Unhandled event", msg);
-                        this.sendCloud({id: msg.id, "result":"ok"});
+                        this.sendCloud({id: msg.id, "result":"ok"}).catch((err) => {
+                            Logger.warn("Error while sending cloud ack", err);
+                        });
                 }
 
                 return true;
@@ -453,7 +465,7 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
         data.forEach(elem => {
             switch (elem.siid) {
                 case MIOT_SERVICES.ERROR.SIID: {
-                    this.errorCode = elem.value;
+                    this.errorCode = typeof elem.value === "number" ? elem.value.toString() : elem.value;
 
                     this.stateNeedsUpdate = true;
                     break;
@@ -513,26 +525,6 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
                             }));
                             break;
                         }
-
-                        case MIOT_SERVICES.VACUUM_2.PROPERTIES.PERSISTENT_MAPS.PIID:
-                        case MIOT_SERVICES.VACUUM_2.PROPERTIES.TOTAL_STATISTICS_TIME.PIID:
-                        case MIOT_SERVICES.VACUUM_2.PROPERTIES.TOTAL_STATISTICS_AREA.PIID:
-                        case MIOT_SERVICES.VACUUM_2.PROPERTIES.TOTAL_STATISTICS_COUNT.PIID:
-                        case MIOT_SERVICES.VACUUM_2.PROPERTIES.CURRENT_STATISTICS_AREA.PIID:
-                        case MIOT_SERVICES.VACUUM_2.PROPERTIES.CURRENT_STATISTICS_TIME.PIID:
-                            //ignored for now
-                            break;
-
-                        //TODO: Figure out what these mean
-                        case 11:
-                        case 12:
-                        case 19:
-                        case 22:
-                            //ignored for now
-                            break;
-
-                        default:
-                            Logger.warn("Unhandled VACUUM_2 property", elem);
                     }
                     break;
                 }
@@ -562,10 +554,6 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
                 case MIOT_SERVICES.FILTER.SIID:
                     this.consumableMonitoringCapability.parseConsumablesMessage(elem);
                     break;
-
-
-                default:
-                    Logger.warn("Unhandled property update", elem);
             }
         });
 
@@ -574,11 +562,12 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
             let newState;
             let statusValue;
             let statusFlag;
+            let statusError;
             let statusMetaData = {};
 
             if (this.errorCode === "0" || this.errorCode === "" || this.errorCode === 0 || this.errorCode === undefined) {
-                statusValue = DreameValetudoRobot.STATUS_MAP[this.mode].value;
-                statusFlag = DreameValetudoRobot.STATUS_MAP[this.mode].flag;
+                statusValue = DreameValetudoRobot.STATUS_MAP[this.mode]?.value ?? stateAttrs.StatusStateAttribute.VALUE.IDLE;
+                statusFlag = DreameValetudoRobot.STATUS_MAP[this.mode]?.flag;
 
                 if (this.isCharging === true) {
                     statusValue = stateAttrs.StatusStateAttribute.VALUE.DOCKED;
@@ -592,14 +581,14 @@ class Dreame1CValetudoRobot extends DreameValetudoRobot {
             } else {
                 statusValue = stateAttrs.StatusStateAttribute.VALUE.ERROR;
 
-                statusMetaData.error_code = this.errorCode;
-                statusMetaData.error_description = DreameValetudoRobot.GET_ERROR_CODE_DESCRIPTION(this.errorCode);
+                statusError = DreameValetudoRobot.MAP_ERROR_CODE(this.errorCode);
             }
 
             newState = new stateAttrs.StatusStateAttribute({
                 value: statusValue,
                 flag: statusFlag,
-                metaData: statusMetaData
+                metaData: statusMetaData,
+                error: statusError
             });
 
             this.state.upsertFirstMatchingAttribute(newState);

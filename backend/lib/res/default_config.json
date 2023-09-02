@@ -22,7 +22,8 @@
             "port": 1883,
             "tls": {
                 "enabled": false,
-                "ca": ""
+                "ca": "",
+                "ignoreCertificateErrors": false
             },
             "authentication": {
                 "credentials": {
@@ -38,7 +39,6 @@
             }
         },
         "identity": {
-            "friendlyName": "",
             "identifier": ""
         },
         "interfaces": {
@@ -55,7 +55,8 @@
         "customizations": {
             "topicPrefix": "",
             "provideMapData": true
-        }
+        },
+        "optionalExposedCapabilities": []
     },
     "ntpClient": {
         "enabled": true,
@@ -67,7 +68,6 @@
     "timers": {},
     "logLevel": "info",
     "debug": {
-        "systemStatInterval" : false,
         "debugHassAnchors": false,
         "storeRawFDSUploads": false
     },
@@ -80,5 +80,14 @@
             "type": "github",
             "implementationSpecificConfig": {}
         }
-    }
+    },
+    "oobe": {
+        "welcomeDialogDismissed": false
+    },
+    "valetudo": {
+        "customizations": {
+            "friendlyName": ""
+        }
+    },
+    "_version": ""
 }

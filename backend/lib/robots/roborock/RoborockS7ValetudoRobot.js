@@ -42,12 +42,21 @@ class RoborockS7ValetudoRobot extends RoborockGen4ValetudoRobot {
             })
         }));
 
+        this.registerCapability(new capabilities.RoborockCarpetSensorModeControlCapability({
+            robot: this,
+            liftModeId: 1
+        }));
+
         this.registerCapability(new capabilities.RoborockAutoEmptyDockManualTriggerCapability({
             robot: this
         }));
 
         [
+            capabilities.RoborockConsumableMonitoringCapability,
+            capabilities.RoborockAutoEmptyDockAutoEmptyControlCapability,
+            capabilities.RoborockAutoEmptyDockManualTriggerCapability,
             capabilities.RoborockKeyLockCapability,
+            capabilities.RoborockMappingPassCapability
         ].forEach(capability => {
             this.registerCapability(new capability({robot: this}));
         });
@@ -58,8 +67,10 @@ class RoborockS7ValetudoRobot extends RoborockGen4ValetudoRobot {
         this.registerCapability(new QuirksCapability({
             robot: this,
             quirks: [
+                quirkFactory.getQuirk(RoborockQuirkFactory.KNOWN_QUIRKS.AUTO_EMPTY_DURATION),
                 quirkFactory.getQuirk(RoborockQuirkFactory.KNOWN_QUIRKS.BUTTON_LEDS),
-                quirkFactory.getQuirk(RoborockQuirkFactory.KNOWN_QUIRKS.STATUS_LED)
+                quirkFactory.getQuirk(RoborockQuirkFactory.KNOWN_QUIRKS.STATUS_LED),
+                quirkFactory.getQuirk(RoborockQuirkFactory.KNOWN_QUIRKS.MOP_PATTERN),
             ]
         }));
     }

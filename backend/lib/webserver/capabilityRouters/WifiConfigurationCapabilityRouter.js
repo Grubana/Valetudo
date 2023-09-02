@@ -13,7 +13,29 @@ class WifiConfigurationCapabilityRouter extends CapabilityRouter {
 
         this.router.put("/", this.validator, async (req, res) => {
             try {
-                await this.capability.setWifiConfiguration(new ValetudoWifiConfiguration(req.body));
+                let typeSpecificSettings;
+
+                switch (req.body.credentials.type) {
+                    case ValetudoWifiConfiguration.CREDENTIALS_TYPE.WPA2_PSK:
+                        typeSpecificSettings = {
+                            password: req.body.credentials.typeSpecificSettings.password
+                        };
+                        break;
+                    default:
+                        typeSpecificSettings = {};
+                }
+
+                await this.capability.setWifiConfiguration(new ValetudoWifiConfiguration({
+                    ssid: req.body.ssid,
+                    credentials: {
+                        type: req.body.credentials.type,
+                        typeSpecificSettings: typeSpecificSettings
+                    },
+                    metaData: {
+                        force: req.body.metaData?.force === true
+                    }
+                }));
+
                 res.sendStatus(200);
             } catch (e) {
                 this.sendErrorResponse(req, res, e);

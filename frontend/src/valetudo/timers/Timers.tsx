@@ -10,11 +10,13 @@ import {
     Timer,
     TimerInformation,
     TimerProperties,
+    useTimerActionMutation,
     useTimerCreationMutation,
     useTimerDeletionMutation,
     useTimerInfoQuery,
     useTimerModificationMutation,
     useTimerPropertiesQuery,
+    ValetudoTimerActionType,
 } from "../../api";
 import TimerCard from "./TimerCard";
 import TimerEditDialog from "./TimerEditDialog";
@@ -24,6 +26,7 @@ import {Help as HelpIcon} from "@mui/icons-material";
 import HelpDialog from "../../components/HelpDialog";
 import {TimersHelp} from "./res/TimersHelp";
 import PaperContainer from "../../components/PaperContainer";
+import {convertTimer} from "./TimerUtils";
 
 const timerTemplate: Timer = {
     id: "",
@@ -32,7 +35,7 @@ const timerTemplate: Timer = {
     hour: 6,
     minute: 0,
     action: {
-        type: "full_cleanup",
+        type: ValetudoTimerActionType.FULL_CLEANUP,
         params: {},
     },
 };
@@ -53,6 +56,7 @@ const Timers = (): JSX.Element => {
     const { mutate: createTimer } = useTimerCreationMutation();
     const { mutate: modifyTimer } = useTimerModificationMutation();
     const { mutate: deleteTimer } = useTimerDeletionMutation();
+    const { mutate: execTimerAction } = useTimerActionMutation();
 
     const [addTimerDialogOpen, setAddTimerDialogOpen] = React.useState(false);
     const [helpDialogOpen, setHelpDialogOpen] = React.useState(false);
@@ -69,7 +73,10 @@ const Timers = (): JSX.Element => {
                 deleteTimer(id);
             };
             const onSave = (timer: Timer) => {
-                modifyTimer(timer);
+                modifyTimer(convertTimer(timer, new Date().getTimezoneOffset()));
+            };
+            const onExecNow = () => {
+                execTimerAction({timerId: id, timerAction: "execute_now"});
             };
 
             return (
@@ -77,13 +84,14 @@ const Timers = (): JSX.Element => {
                     <TimerCard
                         onDelete={onDelete}
                         onSave={onSave}
+                        onExecNow={onExecNow}
                         timerProperties={timerPropertiesData as TimerProperties}
                         timer={timer}
                     />
                 </Grid>
             );
         });
-    }, [modifyTimer, deleteTimer, timerPropertiesData, timerData]);
+    }, [modifyTimer, deleteTimer, execTimerAction, timerPropertiesData, timerData]);
 
     const addTimer = React.useCallback(() => {
         if (!timerPropertiesData) {
@@ -129,18 +137,21 @@ const Timers = (): JSX.Element => {
                 </Grid>
             </Grid>
 
-            <TimerEditDialog
-                timer={addTimerData}
-                timerProperties={timerPropertiesData}
-                open={addTimerDialogOpen}
-                onCancel={() => {
-                    setAddTimerDialogOpen(false);
-                }}
-                onSave={(timer) => {
-                    createTimer(timer);
-                    setAddTimerDialogOpen(false);
-                }}
-            />
+            {
+                addTimerDialogOpen &&
+                <TimerEditDialog
+                    timerInLocalTime={addTimerData}
+                    timerProperties={timerPropertiesData}
+                    onCancel={() => {
+                        setAddTimerDialogOpen(false);
+                    }}
+                    onSave={(timer) => {
+                        createTimer(convertTimer(timer, new Date().getTimezoneOffset()));
+                        setAddTimerDialogOpen(false);
+                    }}
+                />
+            }
+
             <Grid
                 container
                 style={{

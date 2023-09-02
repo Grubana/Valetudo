@@ -54,6 +54,7 @@ const CAPABILITY_TYPE_TO_ROUTER_MAPPING = {
     [capabilities.BasicControlCapability.TYPE]: capabilityRouters.BasicControlCapabilityRouter,
     [capabilities.FanSpeedControlCapability.TYPE]: capabilityRouters.PresetSelectionCapabilityRouter,
     [capabilities.WaterUsageControlCapability.TYPE]: capabilityRouters.PresetSelectionCapabilityRouter,
+    [capabilities.OperationModeControlCapability.TYPE]: capabilityRouters.PresetSelectionCapabilityRouter,
     [capabilities.ConsumableMonitoringCapability.TYPE]: capabilityRouters.ConsumableMonitoringCapabilityRouter,
     [capabilities.ZoneCleaningCapability.TYPE]: capabilityRouters.ZoneCleaningCapabilityRouter,
     [capabilities.GoToLocationCapability.TYPE]: capabilityRouters.GoToLocationCapabilityRouter,
@@ -75,12 +76,18 @@ const CAPABILITY_TYPE_TO_ROUTER_MAPPING = {
     [capabilities.PendingMapChangeHandlingCapability.TYPE]: capabilityRouters.PendingMapChangeHandlingCapabilityRouter,
     [capabilities.MappingPassCapability.TYPE]: capabilityRouters.MappingPassCapabilityRouter,
     [capabilities.KeyLockCapability.TYPE]: capabilityRouters.SimpleToggleCapabilityRouter,
+    [capabilities.ObstacleAvoidanceControlCapability.TYPE]: capabilityRouters.SimpleToggleCapabilityRouter,
+    [capabilities.PetObstacleAvoidanceControlCapability.TYPE]: capabilityRouters.SimpleToggleCapabilityRouter,
     [capabilities.AutoEmptyDockAutoEmptyControlCapability.TYPE]: capabilityRouters.SimpleToggleCapabilityRouter,
     [capabilities.AutoEmptyDockManualTriggerCapability.TYPE]: capabilityRouters.AutoEmptyDockManualTriggerCapabilityRouter,
     [capabilities.TotalStatisticsCapability.TYPE]: capabilityRouters.StatisticsCapabilityRouter,
     [capabilities.CurrentStatisticsCapability.TYPE]: capabilityRouters.StatisticsCapabilityRouter,
     [capabilities.QuirksCapability.TYPE]: capabilityRouters.QuirksCapabilityRouter,
-    [capabilities.WifiScanCapability.TYPE]: capabilityRouters.WifiScanCapabilityRouter
+    [capabilities.WifiScanCapability.TYPE]: capabilityRouters.WifiScanCapabilityRouter,
+    [capabilities.MopDockCleanManualTriggerCapability.TYPE]: capabilityRouters.MopDockCleanManualTriggerCapabilityRouter,
+    [capabilities.MopDockDryManualTriggerCapability.TYPE]: capabilityRouters.MopDockDryManualTriggerCapabilityRouter,
+    [capabilities.CollisionAvoidantNavigationControlCapability.TYPE]: capabilityRouters.SimpleToggleCapabilityRouter,
+    [capabilities.CarpetSensorModeControlCapability.TYPE]: capabilityRouters.CarpetSensorModeControlCapabilityRouter,
 };
 
 module.exports = CapabilitiesRouter;

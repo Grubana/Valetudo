@@ -1,7 +1,8 @@
 import {
     Capability,
-    useCleanTemporaryZonesMutation,
-    useRobotStatusQuery, useZonePropertiesQuery,
+    useCleanZonesMutation,
+    useRobotStatusQuery,
+    useZonePropertiesQuery,
 } from "../../../api";
 import React from "react";
 import {Box, Button, CircularProgress, Container, Grid, Typography} from "@mui/material";
@@ -9,11 +10,13 @@ import { useLongPress } from "use-long-press";
 import {ActionButton} from "../../Styled";
 import ZoneClientStructure from "../../structures/client_structures/ZoneClientStructure";
 import IntegrationHelpDialog from "../../../components/IntegrationHelpDialog";
+import {PointCoordinates} from "../../utils/types";
+import {IterationsIcon} from "../../../assets/icon_components/IterationsIcon";
 
 interface ZoneActionsProperties {
     zones: ZoneClientStructure[];
 
-    convertPixelCoordinatesToCMSpace(coordinates: {x: number, y: number}) : {x: number, y: number}
+    convertPixelCoordinatesToCMSpace(coordinates: PointCoordinates) : PointCoordinates
 
     onClear(): void;
 
@@ -34,7 +37,7 @@ const ZoneActions = (
     const {
         mutate: cleanTemporaryZones,
         isLoading: cleanTemporaryZonesIsExecuting
-    } = useCleanTemporaryZonesMutation({
+    } = useCleanZonesMutation({
         onSuccess: onClear,
     });
     const {
@@ -50,7 +53,6 @@ const ZoneActions = (
     const zonesForAPI = React.useMemo(() => {
         return zones.map((zone) => {
             return {
-                iterations: iterationCount,
                 points: {
                     pA: convertPixelCoordinatesToCMSpace({
                         x: zone.x0,
@@ -71,24 +73,28 @@ const ZoneActions = (
                 }
             };
         });
-    }, [zones, iterationCount, convertPixelCoordinatesToCMSpace]);
+    }, [zones, convertPixelCoordinatesToCMSpace]);
 
     const handleClick = React.useCallback(() => {
         if (!didSelectZones || !canClean) {
             return;
         }
 
-        cleanTemporaryZones(zonesForAPI);
-    }, [canClean, didSelectZones, zonesForAPI, cleanTemporaryZones]);
+        cleanTemporaryZones({
+            zones: zonesForAPI,
+            iterations: iterationCount
+        });
+    }, [canClean, didSelectZones, zonesForAPI, iterationCount, cleanTemporaryZones]);
 
     const handleLongClick = React.useCallback(() => {
         setIntegrationHelpDialogPayload(JSON.stringify({
             action: "clean",
-            zones: zonesForAPI
+            zones: zonesForAPI,
+            iterations: iterationCount
         }, null, 2));
 
         setIntegrationHelpDialogOpen(true);
-    }, [zonesForAPI]);
+    }, [zonesForAPI, iterationCount]);
 
     const setupClickHandlers = useLongPress(
         handleLongClick,
@@ -177,7 +183,7 @@ const ZoneActions = (
                             onClick={handleIterationToggle}
                             title="Iteration Count"
                         >
-                            {iterationCount}x
+                            <IterationsIcon iterationCount={iterationCount}/>
                         </ActionButton>
                     </Grid>
                 }
@@ -192,9 +198,9 @@ const ZoneActions = (
                         Add ({zones.length}/{zoneProperties.zoneCount.max})
                     </ActionButton>
                 </Grid>
-                <Grid item>
-                    {
-                        didSelectZones &&
+                {
+                    didSelectZones &&
+                    <Grid item>
                         <ActionButton
                             disabled={cleanTemporaryZonesIsExecuting}
                             color="inherit"
@@ -204,16 +210,16 @@ const ZoneActions = (
                         >
                             Clear
                         </ActionButton>
-                    }
-                </Grid>
-                <Grid item>
-                    {
-                        (didSelectZones && !canClean) &&
+                    </Grid>
+                }
+                {
+                    (didSelectZones && !canClean) &&
+                    <Grid item>
                         <Typography variant="caption" color="textSecondary">
                             Cannot start zone cleaning while the robot is busy
                         </Typography>
-                    }
-                </Grid>
+                    </Grid>
+                }
             </Grid>
             <IntegrationHelpDialog
                 dialogOpen={integrationHelpDialogOpen}

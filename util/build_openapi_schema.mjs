@@ -54,7 +54,17 @@ const options = {
             {name: "CombinedVirtualRestrictionsCapability", description: "Combined virtual restrictions capability"},
             {name: "PendingMapChangeHandlingCapability", description: "Pending map change handling capability"},
             {name: "MappingPassCapability", description: "Mapping pass capability"},
-            {name: "KeyLockCapability", description: "Key lock capability"}
+            {name: "KeyLockCapability", description: "Key lock capability"},
+            {name: "AutoEmptyDockManualTriggerCapability", description: "Auto empty dock manual trigger capability"},
+            {name: "MopDockCleanManualTriggerCapability", description: "Mop Dock clean manual trigger capability"},
+            {name: "MopDockDryManualTriggerCapability", description: "Mop Dock dry manual trigger capability"},
+            {name: "OperationModeControlCapability", description: "Operation mode control capability"},
+            {name: "ObstacleAvoidanceControlCapability", description: "Obstacle avoidance control capability"},
+            {name: "PetObstacleAvoidanceControlCapability", description: "Pet obstacle avoidance control capability"},
+            {name: "CarpetSensorModeControlCapability", description: "Carpet sensor mode control capability"},
+            {name: "CollisionAvoidantNavigationControlCapability", description: "Collision avoidant navigation control capability"},
+            {name: "TotalStatisticsCapability", description: "Total statistics capability"},
+            {name: "CurrentStatisticsCapability", description: "Current statistics capability"},
         ],
         components: {
             responses: {
@@ -99,10 +109,15 @@ const spec = await swaggerJsdoc(options);
 
 await SwaggerParser.validate(spec);
 
-
+// For internal use by valetudo + inbuilt swagger UI
 fs.writeFileSync(
     path.join(__dirname, "./backend/lib/res/valetudo.openapi.schema.json"),
     JSON.stringify(spec)
 );
 
-
+// For external use as a reference resource
+fs.mkdirSync(path.join(__dirname, "./build/"), { recursive: true })
+fs.writeFileSync(
+    path.join(__dirname, "./build/valetudo.openapi.schema.json"),
+    JSON.stringify(spec, null, 2)
+)

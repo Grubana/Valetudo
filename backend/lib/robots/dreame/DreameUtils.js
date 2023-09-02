@@ -16,9 +16,9 @@ const UINT8_MASK = 0b00000000000000000000000011111111;
 
 class DreameUtils {
     /**
-     * 
+     *
      * @param {number} input
-     * @return {{padCleaningFrequency: number, operationMode: number, waterGrade: number}}
+     * @return {MOP_DOCK_SETTINGS}
      */
     static DESERIALIZE_MOP_DOCK_SETTINGS(input) {
         return {
@@ -29,8 +29,8 @@ class DreameUtils {
     }
 
     /**
-     * 
-     * @param {{padCleaningFrequency: number, operationMode: number, waterGrade: number}} settings
+     *
+     * @param {MOP_DOCK_SETTINGS} settings
      * @return {number}
      */
     static SERIALIZE_MOP_DOCK_SETTINGS(settings) {
@@ -46,6 +46,70 @@ class DreameUtils {
 
         return result;
     }
+
+    /**
+     * 
+     * @param {string} str
+     * @return {MISC_TUNABLES}
+     */
+    static DESERIALIZE_MISC_TUNABLES(str) {
+        const arr = JSON.parse(str);
+        const result = {};
+
+        arr.forEach(elem => {
+            result[elem.k] = elem.v;
+        });
+
+        return result;
+    }
+
+    /**
+     *
+     * @param {MISC_TUNABLES} obj
+     * @return {string}
+     */
+    static SERIALIZE_MISC_TUNABLES_SINGLE_TUNABLE(obj) {
+        const arr = [];
+
+        Object.entries(obj).forEach(([k, v]) => {
+            arr.push({k: k, v: v});
+        });
+
+        return JSON.stringify(arr[0]);
+    }
 }
+
+
+/**
+ * @typedef {object} MOP_DOCK_SETTINGS
+ * @property {number} padCleaningFrequency
+ * @property {number} operationMode
+ * @property {number} waterGrade
+ */
+
+/**
+ * @typedef {object} MISC_TUNABLES
+ *
+ * @property {number} [AutoDry]
+ * @property {number} [CleanType]
+ * @property {number} [FillinLight]
+ * @property {number} [FluctuationConfirmResult]
+ * @property {number} [FluctuationTestResult]
+ * @property {number} [HotWash]
+ * @property {number} [LessColl] 
+ * @property {number} [MaterialDirectionClean]
+ * @property {number} [MeticulousTwist]
+ * @property {number} [MonitorHumanFollow]
+ * @property {number} [MopScalable]
+ * @property {number} [PetPartClean]
+ * @property {number} [SmartAutoMop]
+ * @property {number} [SmartAutoWash]
+ * @property {number} [SmartCharge]
+ * @property {number} [SmartDrying]
+ * @property {number} [SmartHost]
+ * @property {number} [StainIdentify]
+ * @property {number} [SuctionMax]
+ * 
+ */
 
 module.exports = DreameUtils;

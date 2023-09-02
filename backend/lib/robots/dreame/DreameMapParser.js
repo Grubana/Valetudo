@@ -1,5 +1,5 @@
 const Logger = require("../../Logger");
-const Map = require("../../entities/map");
+const mapEntities = require("../../entities/map");
 const zlib = require("zlib");
 
 /**
@@ -17,9 +17,9 @@ class DreameMapParser {
      *
      * @param {Buffer} buf
      * @param {MapDataType} [type]
-     * @returns {null|import("../../entities/map/ValetudoMap")}
+     * @returns {Promise<null|import("../../entities/map/ValetudoMap")>}
      */
-    static PARSE(buf, type) {
+    static async PARSE(buf, type) {
         //Maps are always at least 27 bytes in size
         if (!buf || buf.length < HEADER_SIZE) {
             return null;
@@ -29,7 +29,7 @@ class DreameMapParser {
             type = MAP_DATA_TYPES.REGULAR;
         }
 
-        const parsedHeader = DreameMapParser.PARSE_HEADER(buf.slice(0, HEADER_SIZE));
+        const parsedHeader = DreameMapParser.PARSE_HEADER(buf.subarray(0, HEADER_SIZE));
 
 
         /**
@@ -47,7 +47,7 @@ class DreameMapParser {
 
         if (parsedHeader.robot_position.valid === true) {
             entities.push(
-                new Map.PointMapEntity({
+                new mapEntities.PointMapEntity({
                     points: [
                         parsedHeader.robot_position.x,
                         parsedHeader.robot_position.y
@@ -55,14 +55,14 @@ class DreameMapParser {
                     metaData: {
                         angle: DreameMapParser.CONVERT_ANGLE_TO_VALETUDO(parsedHeader.robot_position.angle)
                     },
-                    type: Map.PointMapEntity.TYPE.ROBOT_POSITION
+                    type: mapEntities.PointMapEntity.TYPE.ROBOT_POSITION
                 })
             );
         }
 
         if (parsedHeader.charger_position.valid === true) {
             entities.push(
-                new Map.PointMapEntity({
+                new mapEntities.PointMapEntity({
                     points: [
                         parsedHeader.charger_position.x,
                         parsedHeader.charger_position.y
@@ -70,20 +70,20 @@ class DreameMapParser {
                     metaData: {
                         angle: DreameMapParser.CONVERT_ANGLE_TO_VALETUDO(parsedHeader.charger_position.angle)
                     },
-                    type: Map.PointMapEntity.TYPE.CHARGER_LOCATION
+                    type: mapEntities.PointMapEntity.TYPE.CHARGER_LOCATION
                 })
             );
         }
 
 
         if (buf.length >= HEADER_SIZE + parsedHeader.width * parsedHeader.height) {
-            const imageData = buf.slice(HEADER_SIZE, HEADER_SIZE + parsedHeader.width * parsedHeader.height);
+            const imageData = buf.subarray(HEADER_SIZE, HEADER_SIZE + parsedHeader.width * parsedHeader.height);
             const activeSegmentIds = [];
             const segmentNames = {};
             let additionalData = {};
 
             try {
-                additionalData = JSON.parse(buf.slice(parsedHeader.width * parsedHeader.height + HEADER_SIZE).toString());
+                additionalData = JSON.parse(buf.subarray(parsedHeader.width * parsedHeader.height + HEADER_SIZE).toString());
             } catch (e) {
                 Logger.warn("Error while parsing additional map data", e);
             }
@@ -109,27 +109,32 @@ class DreameMapParser {
              *
              * ris 2 seems to represent that the rism data shall be applied to the map while ris 1 only appears
              * after the robot complains about being unable to use the map
+             *
+             * With vSLAM robots, ris doesn't automatically switch from 1 to 2 after the initial cleanup.
+             * Instead, it requires the start of another cleanup
+             * Because of that, we also need to check for iscleanlog, so that a vSlam user gets to see their
+             * newly mapped segments without any instantly aborted second cleanups.
              */
-            if (additionalData.rism && additionalData.ris === 2) {
-                const rismResult = DreameMapParser.PARSE(DreameMapParser.PREPROCESS(additionalData.rism), MAP_DATA_TYPES.RISM);
+            if (additionalData.rism && (additionalData.ris === 2 || additionalData.iscleanlog === true)) {
+                const rismResult = await DreameMapParser.PARSE(await DreameMapParser.PREPROCESS(additionalData.rism), MAP_DATA_TYPES.RISM);
 
-                if (rismResult instanceof Map.ValetudoMap) {
+                if (rismResult instanceof mapEntities.ValetudoMap) {
                     rismResult.entities.forEach(e => {
-                        if (e instanceof Map.PointMapEntity) {
-                            if (e.type === Map.PointMapEntity.TYPE.ROBOT_POSITION && parsedHeader.robot_position.valid === false) {
+                        if (e instanceof mapEntities.PointMapEntity) {
+                            if (e.type === mapEntities.PointMapEntity.TYPE.ROBOT_POSITION && parsedHeader.robot_position.valid === false) {
                                 entities.push(e);
                             }
-                            if (e.type === Map.PointMapEntity.TYPE.CHARGER_LOCATION && parsedHeader.charger_position.valid === false) {
+                            if (e.type === mapEntities.PointMapEntity.TYPE.CHARGER_LOCATION && parsedHeader.charger_position.valid === false) {
                                 entities.push(e);
                             }
-                        } else if (e instanceof Map.PolygonMapEntity) {
+                        } else if (e instanceof mapEntities.PolygonMapEntity) {
                             if (
-                                e.type === Map.PolygonMapEntity.TYPE.NO_GO_AREA ||
-                                e.type === Map.PolygonMapEntity.TYPE.NO_MOP_AREA
+                                e.type === mapEntities.PolygonMapEntity.TYPE.NO_GO_AREA ||
+                                e.type === mapEntities.PolygonMapEntity.TYPE.NO_MOP_AREA
                             ) {
                                 entities.push(e);
                             }
-                        } else if (e instanceof Map.LineMapEntity && e.type === Map.LineMapEntity.TYPE.VIRTUAL_WALL) {
+                        } else if (e instanceof mapEntities.LineMapEntity && e.type === mapEntities.LineMapEntity.TYPE.VIRTUAL_WALL) {
                             entities.push(e);
                         }
                     });
@@ -181,7 +186,7 @@ class DreameMapParser {
                     ...DreameMapParser.PARSE_AREAS(
                         parsedHeader,
                         [additionalData.da],
-                        Map.PolygonMapEntity.TYPE.ACTIVE_ZONE
+                        mapEntities.PolygonMapEntity.TYPE.ACTIVE_ZONE
                     )
                 );
             }
@@ -191,7 +196,7 @@ class DreameMapParser {
                     ...DreameMapParser.PARSE_AREAS(
                         parsedHeader,
                         additionalData.da2.areas,
-                        Map.PolygonMapEntity.TYPE.ACTIVE_ZONE
+                        mapEntities.PolygonMapEntity.TYPE.ACTIVE_ZONE
                     )
                 );
             }
@@ -202,7 +207,7 @@ class DreameMapParser {
                         ...DreameMapParser.PARSE_AREAS(
                             parsedHeader,
                             additionalData.vw.rect,
-                            Map.PolygonMapEntity.TYPE.NO_GO_AREA
+                            mapEntities.PolygonMapEntity.TYPE.NO_GO_AREA
                         )
                     );
                 }
@@ -212,7 +217,7 @@ class DreameMapParser {
                         ...DreameMapParser.PARSE_AREAS(
                             parsedHeader,
                             additionalData.vw.mop,
-                            Map.PolygonMapEntity.TYPE.NO_MOP_AREA
+                            mapEntities.PolygonMapEntity.TYPE.NO_MOP_AREA
                         )
                     );
                 }
@@ -222,10 +227,31 @@ class DreameMapParser {
                         ...DreameMapParser.PARSE_LINES(
                             parsedHeader,
                             additionalData.vw.line,
-                            Map.LineMapEntity.TYPE.VIRTUAL_WALL
+                            mapEntities.LineMapEntity.TYPE.VIRTUAL_WALL
                         )
                     );
                 }
+            }
+
+            /*
+                TODO RESEARCH
+
+                There can be an spoint object. No idea what that does
+                There can also be multiple tpoint points. No idea when or why that happens or what it does either
+             */
+            if (additionalData.pointinfo && Array.isArray(additionalData.pointinfo.tpoint) && additionalData.pointinfo.tpoint.length === 1) {
+                const goToPoint = DreameMapParser.CONVERT_TO_VALETUDO_COORDINATES(
+                    additionalData.pointinfo.tpoint[0][0],
+                    additionalData.pointinfo.tpoint[0][1],
+                );
+
+                entities.push(new mapEntities.PointMapEntity({
+                    points: [
+                        goToPoint.x,
+                        goToPoint.y,
+                    ],
+                    type: mapEntities.PointMapEntity.TYPE.GO_TO_TARGET
+                }));
             }
 
             if (additionalData.suw > 0) {
@@ -237,12 +263,39 @@ class DreameMapParser {
                  */
                 metaData.dreamePendingMapChange = true;
             }
+
+            if (additionalData.ai_obstacle?.length > 0) {
+                additionalData.ai_obstacle.forEach((obstacle) => {
+                    const coords = DreameMapParser.CONVERT_TO_VALETUDO_COORDINATES(
+                        parseFloat(obstacle[0]),
+                        parseFloat(obstacle[1])
+                    );
+                    const type = OBSTACLE_TYPES[obstacle[2]] ?? `Unknown ID ${obstacle[2]}`;
+                    const confidence = `${Math.round(parseFloat(obstacle[3])*100)}%`;
+
+                    entities.push(new mapEntities.PointMapEntity({
+                        points: [
+                            coords.x,
+                            coords.y,
+                        ],
+                        type: mapEntities.PointMapEntity.TYPE.OBSTACLE,
+                        metaData: {
+                            label: `${type} (${confidence})`
+                        }
+                    }));
+                });
+            }
         } else {
             //Just a header
             return null;
         }
 
-        return new Map.ValetudoMap({
+        // While the map is technically valid at this point, we still ignore it as we don't need a map with 0 pixels
+        if (layers.length === 0) {
+            return null;
+        }
+
+        return new mapEntities.ValetudoMap({
             metaData: metaData,
             size: {
                 x: MAX_X,
@@ -341,6 +394,7 @@ class DreameMapParser {
                             case PIXEL_TYPES.NONE:
                                 break;
                             case PIXEL_TYPES.FLOOR:
+                            case PIXEL_TYPES.CARPET:
                                 floorPixels.push(coords);
                                 break;
                             case PIXEL_TYPES.WALL:
@@ -353,13 +407,18 @@ class DreameMapParser {
                 } else if (type === MAP_DATA_TYPES.RISM) {
                     /**
                      * A rism Pixel is one byte consisting of
-                     *      1                  0000000
-                     *      isWall flag       The Segment ID
+                     *      1            1                000000
+                     *      isWall flag  isCarpet flag    The Segment ID
                      */
                     const px = buf[(i * parsedHeader.width) + j];
 
-                    const segmentId = px & 0b01111111;
+                    const segmentId = px & 0b00111111;
                     const wallFlag = px >> 7;
+
+                    /*
+                        TODO: figure out what to do with the carpet information
+                        px >> 6 & 0b00000001
+                    */
 
                     if (wallFlag) {
                         wallPixels.push(coords);
@@ -376,18 +435,18 @@ class DreameMapParser {
 
         if (floorPixels.length > 0) {
             layers.push(
-                new Map.MapLayer({
-                    pixels: floorPixels.sort(Map.MapLayer.COORDINATE_TUPLE_SORT).flat(),
-                    type: Map.MapLayer.TYPE.FLOOR
+                new mapEntities.MapLayer({
+                    pixels: floorPixels.sort(mapEntities.MapLayer.COORDINATE_TUPLE_SORT).flat(),
+                    type: mapEntities.MapLayer.TYPE.FLOOR
                 })
             );
         }
 
         if (wallPixels.length > 0) {
             layers.push(
-                new Map.MapLayer({
-                    pixels: wallPixels.sort(Map.MapLayer.COORDINATE_TUPLE_SORT).flat(),
-                    type: Map.MapLayer.TYPE.WALL
+                new mapEntities.MapLayer({
+                    pixels: wallPixels.sort(mapEntities.MapLayer.COORDINATE_TUPLE_SORT).flat(),
+                    type: mapEntities.MapLayer.TYPE.WALL
                 })
             );
         }
@@ -404,9 +463,9 @@ class DreameMapParser {
             }
 
             layers.push(
-                new Map.MapLayer({
-                    pixels: segments[segmentId].sort(Map.MapLayer.COORDINATE_TUPLE_SORT).flat(),
-                    type: Map.MapLayer.TYPE.SEGMENT,
+                new mapEntities.MapLayer({
+                    pixels: segments[segmentId].sort(mapEntities.MapLayer.COORDINATE_TUPLE_SORT).flat(),
+                    type: mapEntities.MapLayer.TYPE.SEGMENT,
                     metaData: metaData
                 })
             );
@@ -428,7 +487,11 @@ class DreameMapParser {
         let match;
 
         while ((match = PATH_REGEX.exec(traceString)) !== null) {
-            if (match.groups.operator === PATH_OPERATORS.START) {
+            if (
+                match.groups.operator === PATH_OPERATORS.START ||
+                match.groups.operator === PATH_OPERATORS.MOP_START ||
+                match.groups.operator === PATH_OPERATORS.DUAL_START
+            ) {
                 currentUnprocessedPath = [];
                 unprocessedPaths.push(currentUnprocessedPath);
 
@@ -462,9 +525,9 @@ class DreameMapParser {
             }
 
             paths.push(
-                new Map.PathMapEntity({
+                new mapEntities.PathMapEntity({
                     points: processedPathPoints,
-                    type: Map.PathMapEntity.TYPE.PATH
+                    type: mapEntities.PathMapEntity.TYPE.PATH
                 })
             );
         });
@@ -487,7 +550,7 @@ class DreameMapParser {
             });
 
 
-            return new Map.PolygonMapEntity({
+            return new mapEntities.PolygonMapEntity({
                 type: type,
                 points: [
                     xCoords[0], yCoords[0],
@@ -505,7 +568,7 @@ class DreameMapParser {
             const pB = DreameMapParser.CONVERT_TO_VALETUDO_COORDINATES(a[2], a[3]);
 
 
-            return new Map.LineMapEntity({
+            return new mapEntities.LineMapEntity({
                 type: type,
                 points: [pA.x,pA.y,pB.x,pB.y]
             });
@@ -517,17 +580,26 @@ class DreameMapParser {
      *
      * https://tools.ietf.org/html/rfc4648#section-5
      *
-     * 
+     *
      *
      * @param {Buffer|string} data
-     * @returns {Buffer|null}
+     * @returns {Promise<Buffer|null>}
      */
-    static PREPROCESS(data) {
+    static async PREPROCESS(data) {
         // As string.toString() is a no-op, we don't need to check the type beforehand
         const base64String = data.toString().replace(/_/g, "/").replace(/-/g, "+");
 
         try {
-            return zlib.inflateSync(Buffer.from(base64String, "base64"));
+            // intentional return await
+            return await new Promise((resolve, reject) => {
+                zlib.inflate(Buffer.from(base64String, "base64"), (err, result) => {
+                    if (!err) {
+                        resolve(result);
+                    } else {
+                        reject(err);
+                    }
+                });
+            });
         } catch (e) {
             Logger.error("Error while preprocessing map", e);
 
@@ -539,7 +611,8 @@ class DreameMapParser {
 const PIXEL_TYPES = Object.freeze({
     NONE: 0,
     FLOOR: 1,
-    WALL: 2
+    WALL: 2,
+    CARPET: 3
 });
 
 const FRAME_TYPES = Object.freeze({
@@ -547,10 +620,28 @@ const FRAME_TYPES = Object.freeze({
     P: 80
 });
 
-const PATH_REGEX = /(?<operator>[SL])(?<x>-?\d+),(?<y>-?\d+)/g;
+const PATH_REGEX = /(?<operator>[SMWL])(?<x>-?\d+),(?<y>-?\d+)/g;
 const PATH_OPERATORS = {
     START: "S",
+    MOP_START: "M",
+    DUAL_START: "W",
     RELATIVE_LINE: "L"
+};
+
+const OBSTACLE_TYPES = {
+    "128": "Pedestal",
+    "129": "Bathroom Scale",
+    "130": "Power Strip",
+    "132": "Toy",
+    "133": "Shoe",
+    "134": "Sock",
+    "135": "Feces",
+    "136": "Trash Can",
+    "137": "Fabric",
+    "138": "Cable",
+    "139": "Stain",
+    "142": "Obstacle",
+    "158": "Pet"
 };
 
 /**

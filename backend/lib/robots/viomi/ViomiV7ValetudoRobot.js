@@ -14,7 +14,6 @@ class ViomiV7ValetudoRobot extends ViomiValetudoRobot {
      */
     constructor(options) {
         super(options);
-        // TODO: register model-specific capabilities
 
         const quirkFactory = new ViomiQuirkFactory({
             robot: this
@@ -22,7 +21,9 @@ class ViomiV7ValetudoRobot extends ViomiValetudoRobot {
         this.registerCapability(new QuirksCapability({
             robot: this,
             quirks: [
-                quirkFactory.getQuirk(ViomiQuirkFactory.KNOWN_QUIRKS.BUTTON_LEDS)
+                quirkFactory.getQuirk(ViomiQuirkFactory.KNOWN_QUIRKS.BUTTON_LEDS),
+                quirkFactory.getQuirk(ViomiQuirkFactory.KNOWN_QUIRKS.MOP_PATTERN),
+                quirkFactory.getQuirk(ViomiQuirkFactory.KNOWN_QUIRKS.OUTLINE_MODE),
             ]
         }));
     }
@@ -33,7 +34,7 @@ class ViomiV7ValetudoRobot extends ViomiValetudoRobot {
 
     static IMPLEMENTATION_AUTO_DETECTION_HANDLER() {
         const deviceConf = MiioValetudoRobot.READ_DEVICE_CONF(ViomiValetudoRobot.DEVICE_CONF_PATH);
-        return !!(deviceConf && ["viomi.vacuum.v6", "viomi.vacuum.v7", "viomi.vacuum.v8", "viomi.vacuum.v9"].includes(deviceConf.model));
+        return !!(deviceConf && deviceConf.model === "viomi.vacuum.v7");
     }
 }
 

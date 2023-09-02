@@ -14,6 +14,7 @@ module.exports = {
     MockMapResetCapability: require("./MockMapResetCapability"),
     MockMapSegmentationCapability: require("./MockMapSegmentationCapability"),
     MockMappingPassCapability: require("./MockMappingPassCapability"),
+    MockObstacleAvoidanceControlCapability: require("./MockObstacleAvoidanceControlCapability"),
     MockPendingMapChangeHandlingCapability: require("./MockPendingMapChangeHandlingCapability"),
     MockPersistentMapControlCapability: require("./MockPersistentMapControlCapability"),
     MockSpeakerTestCapability: require("./MockSpeakerTestCapability"),
@@ -22,5 +23,6 @@ module.exports = {
     MockVoicePackManagementCapability: require("./MockVoicePackManagementCapability"),
     MockWaterUsageControlCapability: require("./MockWaterUsageControlCapability"),
     MockWifiConfigurationCapability: require("./MockWifiConfigurationCapability"),
+    MockWifiScanCapability: require("./MockWifiScanCapability"),
     MockZoneCleaningCapability: require("./MockZoneCleaningCapability")
 };

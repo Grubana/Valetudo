@@ -45,6 +45,7 @@ class MiioSocket {
         this.onConnected = options.onConnected;
         this.connected = false;
         this.isCloudSocket = options.isCloudSocket;
+        /** @type {null | ((msg: import("./DecodedMiioPacket")) => void)} */
         this.onEmptyPacket = null;
 
 
@@ -52,7 +53,15 @@ class MiioSocket {
             this.rinfo = rinfo;
             const decodedIncomingPacket = this.codec.decodeIncomingMiioPacket(incomingMsg);
 
-            this.deviceId = decodedIncomingPacket.deviceId;
+            if (
+                this.deviceId !== decodedIncomingPacket.deviceId &&
+                decodedIncomingPacket.deviceId !== 0xffffffff // Handshake response did is always 0xffffffff and not the real one
+            ) {
+                this.deviceId = decodedIncomingPacket.deviceId;
+
+                Logger.info(`Got new DeviceID: ${this.deviceId}`);
+            }
+
             const msg = decodedIncomingPacket.msg;
 
             Logger.debug(`<<< ${this.name}${msg ? ":" : "*"}`, msg ?? {stamp: decodedIncomingPacket.stamp});
@@ -73,14 +82,14 @@ class MiioSocket {
                         this.codec.stamp.val < decodedIncomingPacket.stamp
                     ) {
                         // Keep-alive packet. Update our stamp and respond with echo
-                        this.codec.updateStamp(decodedIncomingPacket.val);
+                        this.codec.updateStamp(decodedIncomingPacket.stamp);
                         Logger.debug(">>> " + this.name + "*", {stamp: decodedIncomingPacket.stamp});
 
 
                         this.socket.send(incomingMsg, 0, incomingMsg.length, this.rinfo.port, this.rinfo.address);
                     }
                 } else {
-                    this.codec.updateStamp(decodedIncomingPacket.val);
+                    this.codec.updateStamp(decodedIncomingPacket.stamp);
 
                     /*
                         This exists so that the RetryWrapper can hook the message processing so that it
@@ -91,7 +100,7 @@ class MiioSocket {
                     }
                 }
             } else {
-                this.codec.updateStamp(decodedIncomingPacket.val);
+                this.codec.updateStamp(decodedIncomingPacket.stamp);
 
                 if (msg["id"] && (msg["result"] !== undefined || msg["error"] !== undefined)) {
                     const pendingRequestWithMatchingMsgId = this.pendingRequests[msg["id"]];
@@ -217,9 +226,11 @@ class MiioSocket {
         });
     }
 
-    /** Sends a ping / keepalive message. */
-    sendPing() {
-        this.sendMessage(null);
+    /**
+     * @param {(msg: import("./DecodedMiioPacket")) => void} fn
+     */
+    registerOnEmptyPacketHook(fn) {
+        this.onEmptyPacket = fn;
     }
 
     /**

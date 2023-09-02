@@ -18,12 +18,15 @@ export class Canvas2DContextTrackingWrapper {
         this.savedTransforms = [];
     }
 
+    /**
+     * Returns a clone
+     */
     getTransform() {
-        return this.currentTransform.translate(0, 0);
+        return DOMMatrix.fromMatrix(this.currentTransform);
     }
 
     save() {
-        this.savedTransforms.push(this.currentTransform.translate(0, 0));
+        this.savedTransforms.push(this.getTransform());
 
         this.ctx.save();
     }
@@ -76,7 +79,7 @@ export class Canvas2DContextTrackingWrapper {
     mapPointToCurrentTransform(x: number, y: number) {
         const pt = new DOMPoint(x, y);
 
-        return pt.matrixTransform(DOMMatrix.fromMatrix(this.currentTransform).invertSelf());
+        return pt.matrixTransform(this.getTransform().invertSelf());
     }
 
     getScaleFactor() {

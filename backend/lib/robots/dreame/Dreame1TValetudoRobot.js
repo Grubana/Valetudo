@@ -15,6 +15,25 @@ class Dreame1TValetudoRobot extends DreameGen2VSlamValetudoRobot {
     constructor(options) {
         super(options);
 
+        this.registerCapability(new capabilities.DreameZoneCleaningCapability({
+            robot: this,
+            miot_actions: {
+                start: {
+                    siid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.SIID,
+                    aiid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.ACTIONS.START.AIID
+                }
+            },
+            miot_properties: {
+                mode: {
+                    piid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.PROPERTIES.MODE.PIID
+                },
+                additionalCleanupParameters: {
+                    piid: DreameGen2ValetudoRobot.MIOT_SERVICES.VACUUM_2.PROPERTIES.ADDITIONAL_CLEANUP_PROPERTIES.PIID
+                }
+            },
+            zoneCleaningModeId: 19
+        }));
+
         this.registerCapability(new capabilities.DreameConsumableMonitoringCapability({
             robot: this,
             miot_properties: {
@@ -29,6 +48,10 @@ class Dreame1TValetudoRobot extends DreameGen2VSlamValetudoRobot {
                 filter: {
                     siid: DreameGen2ValetudoRobot.MIOT_SERVICES.FILTER.SIID,
                     piid: DreameGen2ValetudoRobot.MIOT_SERVICES.FILTER.PROPERTIES.TIME_LEFT.PIID
+                },
+                sensor: {
+                    siid: DreameGen2ValetudoRobot.MIOT_SERVICES.SENSOR.SIID,
+                    piid: DreameGen2ValetudoRobot.MIOT_SERVICES.SENSOR.PROPERTIES.TIME_LEFT.PIID
                 }
             },
             miot_actions: {
@@ -43,6 +66,10 @@ class Dreame1TValetudoRobot extends DreameGen2VSlamValetudoRobot {
                 reset_filter: {
                     siid: DreameGen2ValetudoRobot.MIOT_SERVICES.FILTER.SIID,
                     aiid: DreameGen2ValetudoRobot.MIOT_SERVICES.FILTER.ACTIONS.RESET.AIID
+                },
+                reset_sensor: {
+                    siid: DreameGen2ValetudoRobot.MIOT_SERVICES.SENSOR.SIID,
+                    aiid: DreameGen2ValetudoRobot.MIOT_SERVICES.SENSOR.ACTIONS.RESET.AIID
                 }
             },
         }));

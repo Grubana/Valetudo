@@ -3,9 +3,11 @@ const DataType = require("../homie/DataType");
 const EntityCategory = require("../homeassistant/EntityCategory");
 const HassAnchor = require("../homeassistant/HassAnchor");
 const InLineHassComponent = require("../homeassistant/components/InLineHassComponent");
+const Logger = require("../../Logger");
 const PropertyMqttHandle = require("../handles/PropertyMqttHandle");
 const RobotStateNodeMqttHandle = require("../handles/RobotStateNodeMqttHandle");
 const stateAttrs = require("../../entities/state/attributes");
+const ValetudoRobotError = require("../../entities/core/ValetudoRobotError");
 
 class StatusStateMqttHandle extends RobotStateNodeMqttHandle {
     /**
@@ -34,7 +36,9 @@ class StatusStateMqttHandle extends RobotStateNodeMqttHandle {
                     return null;
                 }
 
-                await HassAnchor.getAnchor(HassAnchor.ANCHOR.VACUUM_STATE).post(HA_STATE_MAPPINGS[statusState.value]);
+                await this.controller.hassAnchorProvider.getAnchor(
+                    HassAnchor.ANCHOR.VACUUM_STATE
+                ).post(HA_STATE_MAPPINGS[statusState.value]);
 
                 return statusState.value;
             }
@@ -43,8 +47,8 @@ class StatusStateMqttHandle extends RobotStateNodeMqttHandle {
         this.registerChild(new PropertyMqttHandle({
             parent: this,
             controller: this.controller,
-            topicName: "detail",
-            friendlyName: "Status detail",
+            topicName: "flag",
+            friendlyName: "Status flag",
             datatype: DataType.ENUM,
             format: Object.values(stateAttrs.StatusStateAttribute.FLAG).join(","),
             getter: async () => {
@@ -54,43 +58,112 @@ class StatusStateMqttHandle extends RobotStateNodeMqttHandle {
                 }
                 return statusState.flag;
             }
-        }));
-
-        this.registerChild(new PropertyMqttHandle({
-            parent: this,
-            controller: this.controller,
-            topicName: "error",
-            friendlyName: "Error description",
-            datatype: DataType.STRING,
-            getter: async () => {
-                const statusState = this.robot.state.getFirstMatchingAttribute(this.getInterestingStatusAttributes()[0]);
-                if (statusState === null) {
-                    return null;
-                }
-                if (statusState.value !== stateAttrs.StatusStateAttribute.VALUE.ERROR) {
-                    return "";  // Clear error
-                }
-                return statusState.metaData.error_description ?? null;
-            },
-            helpText: "The error description will only be populated when the robot reports an error. Errors in " +
-                "Valetudo not reported by the robot won't be sent here."
         }).also((prop) => {
             this.controller.withHass((hass => {
                 prop.attachHomeAssistantComponent(
                     new InLineHassComponent({
                         hass: hass,
                         robot: this.robot,
-                        name: "error",
-                        friendlyName: "Error description",
+                        name: "status_flag",
+                        friendlyName: "Status Flag",
                         componentType: ComponentType.SENSOR,
                         autoconf: {
                             state_topic: prop.getBaseTopic(),
-                            icon: "mdi:alert",
+                            icon: "mdi:flag",
                             entity_category: EntityCategory.DIAGNOSTIC
                         }
                     })
                 );
             }));
+        }));
+
+        this.registerChild(new PropertyMqttHandle({
+            parent: this,
+            controller: this.controller,
+            topicName: "error_description",
+            friendlyName: "Error description",
+            datatype: DataType.STRING,
+            getter: async () => {
+                const statusState = this.robot.state.getFirstMatchingAttribute(this.getInterestingStatusAttributes()[0]);
+
+                if (statusState === null) {
+                    return "Unknown";
+                } else if (statusState.value !== stateAttrs.StatusStateAttribute.VALUE.ERROR) {
+                    return "No error";
+                } else {
+                    return statusState.error?.message ?? "Unknown error";
+                }
+            },
+        }).also((prop) => {
+            this.controller.hassAnchorProvider.getTopicReference(
+                HassAnchor.REFERENCE.ERROR_STATE_DESCRIPTION
+            ).post(prop.getBaseTopic()).catch(err => {
+                Logger.error("Error while posting value to HassAnchor", err);
+            });
+        }));
+
+        this.registerChild(
+            new PropertyMqttHandle({
+                parent: this,
+                controller: this.controller,
+                topicName: "error",
+                friendlyName: "Robot Error",
+                datatype: DataType.STRING,
+                format: "json",
+                getter: async () => {
+                    const statusState = this.robot.state.getFirstMatchingAttribute(this.getInterestingStatusAttributes()[0]);
+                    let value;
+
+                    if (statusState?.value === stateAttrs.StatusStateAttribute.VALUE.ERROR) {
+                        value = statusState.error;
+                    } else {
+                        value = new ValetudoRobotError({
+                            severity: {
+                                kind: ValetudoRobotError.SEVERITY_KIND.NONE,
+                                level: ValetudoRobotError.SEVERITY_LEVEL.NONE
+                            },
+                            subsystem: ValetudoRobotError.SUBSYSTEM.NONE,
+                            message: "",
+                            vendorErrorCode: "",
+                        });
+                    }
+
+                    return {
+                        severity: value.severity,
+                        subsystem: value.subsystem,
+                        message: value.message
+                    };
+                },
+                helpText: "This property contains the current ValetudoRobotError (if any)"
+            }).also((prop) => {
+                this.controller.hassAnchorProvider.getTopicReference(
+                    HassAnchor.REFERENCE.VALETUDO_ROBOT_ERROR
+                ).post(prop.getBaseTopic()).catch(err => {
+                    Logger.error("Error while posting value to HassAnchor", err);
+                });
+            })
+        );
+
+        this.controller.withHass((hass => {
+            this.attachHomeAssistantComponent(
+                new InLineHassComponent({
+                    hass: hass,
+                    robot: this.robot,
+                    name: "error",
+                    friendlyName: "Error",
+                    componentType: ComponentType.SENSOR,
+                    autoconf: {
+                        state_topic: this.controller.hassAnchorProvider.getTopicReference(
+                            HassAnchor.REFERENCE.ERROR_STATE_DESCRIPTION
+                        ),
+                        icon: "mdi:alert",
+                        entity_category: EntityCategory.DIAGNOSTIC,
+                        json_attributes_topic: this.controller.hassAnchorProvider.getTopicReference(
+                            HassAnchor.REFERENCE.VALETUDO_ROBOT_ERROR
+                        )
+                    }
+                })
+            );
         }));
     }
 

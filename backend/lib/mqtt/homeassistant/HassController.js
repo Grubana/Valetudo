@@ -22,12 +22,16 @@ class HassController {
      * @param {import("../MqttController")} options.controller
      * @param {import("../../core/ValetudoRobot")} options.robot
      * @param {import("../../Configuration")} options.config
+     * @param {string} options.friendlyName
      */
     constructor(options) {
         this.controller = options.controller;
         this.robot = options.robot;
         this.config = options.config;
+        this.friendlyName = options.friendlyName;
+
         this.loadConfig();
+
 
         /** @package */
         this.debugAnchors = false;
@@ -48,7 +52,6 @@ class HassController {
 
         this.topicPrefix = this.controller.currentConfig.customizations.topicPrefix;
         this.identifier = this.controller.currentConfig.identity.identifier;
-        this.friendlyName = this.controller.currentConfig.identity.friendlyName;
         this.qos = this.controller.currentConfig.qos;
 
         this.objectId = `valetudo_${this.identifier.toLowerCase()}`;
@@ -77,7 +80,7 @@ class HassController {
             model: this.robot.getModelName(),
             name: this.friendlyName,
             identifiers: [this.identifier],
-            sw_version: Tools.GET_VALETUDO_VERSION() + " (Valetudo)",
+            sw_version: `Valetudo ${Tools.GET_VALETUDO_VERSION()}`,
             configuration_url: `http://${Tools.GET_ZEROCONF_HOSTNAME()}`
         };
     }

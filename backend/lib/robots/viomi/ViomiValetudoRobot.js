@@ -6,10 +6,10 @@ const LinuxWifiScanCapability = require("../common/linuxCapabilities/LinuxWifiSc
 const Logger = require("../../Logger");
 const miioCapabilities = require("../common/miioCapabilities");
 const MiioValetudoRobot = require("../MiioValetudoRobot");
+const ThreeIRobotixMapParser = require("../3irobotix/ThreeIRobotixMapParser");
 const ValetudoRobot = require("../../core/ValetudoRobot");
+const ValetudoRobotError = require("../../entities/core/ValetudoRobotError");
 const ValetudoSelectionPreset = require("../../entities/core/ValetudoSelectionPreset");
-const ViomiMapParser = require("./ViomiMapParser");
-const zlib = require("zlib");
 
 const stateAttrs = entities.state.attributes;
 const mapActions = Object.freeze({
@@ -28,7 +28,6 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
      */
     constructor(options) {
         super(options);
-        this.debugConfig = options.config.get("debug");
 
         if (options.fanSpeeds !== undefined) {
             this.fanSpeeds = options.fanSpeeds;
@@ -44,11 +43,20 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
         this.ephemeralState = {
             carpetModeEnabled: undefined,
             lastOperationType: null,
-            lastOperationAdditionalParams: []
+            lastOperationAdditionalParams: [],
+            outlineModeEnabled: false,
+            vendorMapId: 0
         };
 
         this.registerCapability(new capabilities.ViomiBasicControlCapability({
             robot: this
+        }));
+
+        this.registerCapability(new capabilities.ViomiOperationModeControlCapability({
+            robot: this,
+            presets: Object.keys(attributes.ViomiOperationMode).map(k => {
+                return new ValetudoSelectionPreset({name: k, value: attributes.ViomiOperationMode[k]});
+            }),
         }));
 
         this.registerCapability(new capabilities.ViomiFanSpeedControlCapability({
@@ -91,10 +99,6 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
         }));
 
         this.registerCapability(new capabilities.ViomiZoneCleaningCapability({
-            robot: this
-        }));
-
-        this.registerCapability(new capabilities.ViomiVoicePackManagementCapability({
             robot: this
         }));
 
@@ -175,12 +179,12 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
      * @param {object} options
      * @param {number=} options.retries
      * @param {number=} options.timeout custom timeout in milliseconds
-     * @param {boolean=} options.preferLocalInterface
+     * @param {"local"|"cloud"=} options.interface
      * @returns {Promise<object>}
      */
     sendCommand(method, args = [], options = {}) {
         options = Object.assign({
-            timeout: 2000,
+            timeout: typeof options.timeout === "number" ? Math.max(3000, options.timeout) : 3000,
         }, options);
         return super.sendCommand(method, args, options);
     }
@@ -210,6 +214,23 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
             return true;
         }
 
+        if (msg.method?.startsWith("event.")) {
+            this.sendCloud({id: msg.id, "result":"ok"}).catch((err) => {
+                Logger.warn("Error while sending cloud ack", err);
+            });
+            return true;
+        }
+
+
+        if (msg.method === "props") {
+            if (msg.params?.ota_state !== undefined) {
+                this.sendCloud({id: msg.id, "result":"ok"}).catch((err) => {
+                    Logger.warn("Error while sending cloud ack", err);
+                });
+                return true;
+            }
+        }
+
         return super.onIncomingCloudMessage(msg);
     }
 
@@ -237,6 +258,7 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
             let status;
             let error;
             let statusValue;
+            let statusError;
             let statusMetaData = {};
 
             const previousState = this.state.getFirstMatchingAttributeByConstructor(stateAttrs.StatusStateAttribute);
@@ -255,42 +277,55 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
                 }
             }
 
+            // Need to remember this since we have to send it back when starting a cleaning operation
+            this.ephemeralState.outlineModeEnabled = data["mode"] === 2;
 
             if (error !== undefined) {
                 if (error.value === stateAttrs.StatusStateAttribute.VALUE.ERROR) {
+                    //TODO: classify errors
+                    statusError = new ValetudoRobotError({
+                        severity: {
+                            kind: ValetudoRobotError.SEVERITY_KIND.UNKNOWN,
+                            level: ValetudoRobotError.SEVERITY_LEVEL.UNKNOWN,
+                        },
+                        subsystem: ValetudoRobotError.SUBSYSTEM.UNKNOWN,
+                        message: error.desc,
+                        vendorErrorCode: data["err_state"]
+                    });
                     // If status is an error, mark it as such
-                    statusMetaData.error_code = data["err_state"];
                     statusValue = stateAttrs.StatusStateAttribute.VALUE.ERROR;
-                } else if (status === undefined) {
-                    // If it is not an error but we don't have any status data, use the status code from the error
-                    statusValue = error.value;
-                }
-                // Some errors are rather "warnings": keep the error description if we have one
-                if (error.desc !== undefined) {
-                    statusMetaData.error_description = error.desc;
                 }
             }
 
             let statusFlag = stateAttrs.StatusStateAttribute.FLAG.NONE;
-            if (this.ephemeralState.lastOperationType !== null &&
-                (statusValue === stateAttrs.StatusStateAttribute.VALUE.CLEANING || statusValue === stateAttrs.StatusStateAttribute.VALUE.PAUSED)) {
+            if (
+                this.ephemeralState.lastOperationType !== null &&
+                (statusValue === stateAttrs.StatusStateAttribute.VALUE.CLEANING || statusValue === stateAttrs.StatusStateAttribute.VALUE.PAUSED)
+            ) {
                 statusFlag = this.ephemeralState.lastOperationType;
             } else if (this.ephemeralState.lastOperationType !== null && statusValue === stateAttrs.StatusStateAttribute.VALUE.RETURNING) {
-                // Operation completed without pausing, cleanup last operation so we don't try to resume next time
-                // We only cleanup on "RETURNING" to avoid race conditions in case we set lastOperation and the vacuum
+                // Operation completed without pausing, cleanup last operation, so we don't try to resume next time
+                // We only clean up on "RETURNING" to avoid race conditions in case we set lastOperation and the vacuum
                 // takes some time to update the status.
                 this.ephemeralState.lastOperationType = null;
                 this.ephemeralState.lastOperationAdditionalParams = [];
             }
 
-            //TODO: trigger re-poll of map if new status is fast polling state
-            newStateAttr = new stateAttrs.StatusStateAttribute({
-                value: statusValue,
-                flag: statusFlag,
-                metaData: statusMetaData
-            });
+            if (statusValue !== undefined) {
+                newStateAttr = new stateAttrs.StatusStateAttribute({
+                    value: statusValue,
+                    flag: statusFlag,
+                    metaData: statusMetaData,
+                    error: statusError
+                });
 
-            this.state.upsertFirstMatchingAttribute(newStateAttr);
+                this.state.upsertFirstMatchingAttribute(newStateAttr);
+
+                if (newStateAttr.isActiveState) {
+                    this.pollMap();
+                }
+            }
+
         }
 
         if (data["battary_life"] !== undefined) {
@@ -404,25 +439,14 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
 
         // Viomi naming is abysmal
         if (data["is_mop"] !== undefined) {
-            let operationModeValue;
+            let matchingOperationMode = Object.keys(attributes.ViomiOperationMode).find(key => {
+                return attributes.ViomiOperationMode[key] === data["is_mop"];
+            });
 
-            switch (data["is_mop"]) {
-                case attributes.ViomiOperationMode.VACUUM:
-                    operationModeValue = stateAttrs.OperationModeStateAttribute.VALUE.VACUUM;
-                    break;
-                case attributes.ViomiOperationMode.MIXED:
-                    operationModeValue = stateAttrs.OperationModeStateAttribute.VALUE.VACUUM_AND_MOP;
-                    break;
-                case attributes.ViomiOperationMode.MOP:
-                    operationModeValue = stateAttrs.OperationModeStateAttribute.VALUE.MOP;
-                    break;
-            }
-
-            if (operationModeValue) {
-                this.state.upsertFirstMatchingAttribute(new stateAttrs.OperationModeStateAttribute({
-                    value: operationModeValue
-                }));
-            }
+            this.state.upsertFirstMatchingAttribute(new stateAttrs.PresetSelectionStateAttribute({
+                type: stateAttrs.PresetSelectionStateAttribute.TYPE.OPERATION_MODE,
+                value: matchingOperationMode
+            }));
         }
 
         if (data["mop_type"] !== undefined) {
@@ -443,53 +467,50 @@ class ViomiValetudoRobot extends MiioValetudoRobot {
             this.capabilities[capabilities.ViomiPersistentMapControlCapability.TYPE].persistentMapState = data["remember_map"] === 1;
         }
 
-        // Adjust timezone if != UTC
-        if (data["timezone"] !== undefined && data["timezone"] !== 0) {
-            this.sendCommand("set_timezone", [0], {timeout: 12000}).then(_ => {
-                Logger.info("Viomi timezone adjusted to UTC");
-            }).catch(err => {
-                Logger.warn("Error while adjusting timezone to UTC");
-            });
-        }
-
         this.emitStateAttributesUpdated();
     }
 
     async executeMapPoll() {
-        return this.sendCommand("set_uploadmap", [2], {timeout: 2000});
+        return this.sendCommand("set_uploadmap", [2], {timeout: 2000, interface: "cloud"});
     }
 
     preprocessMap(data) {
-        return new Promise((resolve, reject) => {
-            zlib.inflate(data, (err, result) => {
-                return err ? reject(err) : resolve(result);
-            });
-        });
+        return ThreeIRobotixMapParser.PREPROCESS(data);
     }
 
     async parseMap(data) {
         try {
             // noinspection UnnecessaryLocalVariableJS
-            const map = new ViomiMapParser(data).parse();
+            const map = ThreeIRobotixMapParser.PARSE(data);
 
-            this.state.map = map;
+            if (map !== null) {
+                if (map.metaData.vendorMapId > 0) { // Regular map
+                    this.ephemeralState.vendorMapId = map.metaData.vendorMapId;
 
-            this.emitMapUpdated();
-            return this.state.map; //TODO
+                    this.state.map = map;
+
+                    this.emitMapUpdated();
+                } else { // Temporary map
+                    if (this.ephemeralState.vendorMapId === 0) {
+                        this.state.map = map; // There is no previous full data so this is all we have
+
+                        this.emitMapUpdated();
+                    } // else: ignore since we already have a better map
+                }
+            }
         } catch (e) {
-            let i = 0;
-            let filename = "";
-            do {
-                filename = "/tmp/mapdata" + i++;
-            } while (fs.existsSync(filename));
-
-            fs.writeFile(filename, zlib.deflateSync(data), (err) => {
-                Logger.warn("Error while saving unparsable map", err);
-            });
-            Logger.error("Error parsing map. Dump saved in", filename);
-
-            throw e;
+            Logger.error("Error parsing map.", e);
         }
+
+        return this.state.map;
+    }
+
+    clearValetudoMap() {
+        this.ephemeralState.vendorMapId = 0;
+
+        super.clearValetudoMap();
+
+        this.emitMapUpdated();
     }
 
     getManufacturer() {
@@ -572,8 +593,7 @@ const STATE_PROPERTIES = [
     "remember_map",
     "has_map",
     "is_mop",
-    "has_newmap",
-    "timezone"
+    "has_newmap"
 ];
 
 const STATUS_MAP = Object.freeze({

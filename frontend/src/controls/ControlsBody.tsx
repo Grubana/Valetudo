@@ -1,5 +1,8 @@
 import {Grid} from "@mui/material";
-import {Opacity as WaterUsageIcon,} from "@mui/icons-material";
+import {
+    Opacity as WaterUsageIcon,
+    AppRegistration as OperationModeIcon,
+} from "@mui/icons-material";
 import {Capability, useRobotInformationQuery} from "../api";
 import {useCapabilitiesSupported} from "../CapabilitiesProvider";
 import BasicControls from "./BasicControls";
@@ -17,13 +20,19 @@ const ControlsBody = (): JSX.Element => {
         basicControls,
         fanSpeed,
         waterControl,
+        operationMode,
         triggerEmptySupported,
+        mopDockCleanTriggerSupported,
+        mopDockDryTriggerSupported,
         currentStatistics,
     ] = useCapabilitiesSupported(
         Capability.BasicControl,
         Capability.FanSpeedControl,
         Capability.WaterUsageControl,
+        Capability.OperationModeControl,
         Capability.AutoEmptyDockManualTrigger,
+        Capability.MopDockCleanManualTrigger,
+        Capability.MopDockDryManualTrigger,
         Capability.CurrentStatistics
     );
 
@@ -38,10 +47,22 @@ const ControlsBody = (): JSX.Element => {
 
             <RobotStatus />
 
+            {operationMode && (
+                <PresetSelectionControl
+                    capability={Capability.OperationModeControl}
+                    label="Mode"
+                    icon={
+                        <OperationModeIcon
+                            fontSize="small"
+                        />
+                    }
+                />
+            )}
+
             {fanSpeed && (
                 <PresetSelectionControl
                     capability={Capability.FanSpeedControl}
-                    label="Fan speed"
+                    label="Fan"
                     icon={
                         <FanSpeedIcon
                             fontSize="small"
@@ -52,12 +73,16 @@ const ControlsBody = (): JSX.Element => {
             {waterControl && (
                 <PresetSelectionControl
                     capability={Capability.WaterUsageControl}
-                    label="Water usage"
+                    label="Water"
                     icon={<WaterUsageIcon fontSize="small" />}
                 />
             )}
 
-            {triggerEmptySupported && <Dock/>}
+            {
+                (triggerEmptySupported || mopDockCleanTriggerSupported || mopDockDryTriggerSupported) &&
+
+                <Dock/>
+            }
 
             {
                 robotInformation &&

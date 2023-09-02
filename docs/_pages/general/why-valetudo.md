@@ -59,7 +59,7 @@ by the manufacturer.
 
 Overall, forced firmware updates IMO are a very scary thing, because they clearly demonstrate that you're not the owner
 of the device you've bought. One might argue that you also buy this "managed update service" with the device, however
-it is not a service because you cannot opt out.
+is it really a service if you cannot opt out?
 
 #### No account required
 
@@ -73,7 +73,7 @@ whatever the vendor wants from you as there often is no way to deny it while con
 #### No marketing
 
 With Valetudo, you won't get any ads. You won't get push notifications notifying you about new product launches.
-You won't get nagged by your property to upgrade to a new model or buy this new accessoire for your existing one.
+You won't get nagged by your property to upgrade to a new model or buy these new accessories for your existing one.
 
 You also won't get emails from a third party trying to cross-sell you something.
 
@@ -84,30 +84,29 @@ updates, allowing for remote connectivity to e.g., control your robot while not 
 All that fancy cloud stuff.
 
 
+### No phone app required
+
+Many consumer IoT devices require you to have a smartphone to run the vendor app to provision and control it with no way of using your
+desktop computer, laptop or a smartphone with a different operating system than android/iOS for that.
+
+With Valetudo, you get a webinterface that can be used by any device with any operating system capable of running a recent
+multi-platform browser including desktops, laptops, smartphones and maybe even your smart fridge.
+
+At times, thanks to the fully responsive design, the experience can even be _objectively_ superior to what the vendor provides.
+Some users for example reported that some vendor apps do not play well with tablets and instead just display the phone-optimized
+views in an upscaled way on the large tablet screen, wasting all that screen real estate on black borders.
+
 ### Open Knowledge
 
-Valetudo is open-source under a permissive license. You're free to understand, copy, and modify Valetudo as you like.
+Valetudo is released under a permissive license. You're free to understand and modify your instance of Valetudo as you like.
 There's a lot of documentation. The code is pretty well-structured and features comments where required.
 
-
-You don't have to look at the bottom of a locked filing cabinet stuck in a disused lavatory with a sign on the door saying
-"Beware of the Leopard" just to understand Valetudo. Nothing is hidden from you to purposely create a situation
-of asymmetric information.
-
-If for example the Valetudo Companion App were to become delisted from the store-thingy of your operating system, you
-could always just build it yourself. You have everything to do that.
-
-Even if GitHub goes down it doesn't matter.<br/>
-Git is decentralized by default. Use a local backup. Use a backup somewhere else.<br/>
-On that note, check out the [Software Heritage](https://softwareheritage.org) project.
-
-
+Even if for example the Valetudo Companion App were to become delisted from the store-thingy of your operating system,
+you'd still have everything you need to be independent of that. Even if GitHub goes down, it doesn't matter.
+Git is decentralized by default. Use a local backup. Use a backup somewhere else.
 
 Valetudo however will **not** force-feed you information.<br/>
-You will have to be willing to read and understand the information available.<br/>
-There is no shortcut to this. There is no *quick and easy way*.
-
-**RTFM & RTFC or GTFO**
+You will have to be willing to read and understand the information available.
 
 ## Further remarks
 

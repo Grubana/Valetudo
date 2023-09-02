@@ -1,4 +1,4 @@
-import Map, {MapProps, MapState} from "./Map";
+import Map, {MapContainer, MapProps, MapState} from "./Map";
 import HelpDialog from "../components/HelpDialog";
 import HelpAction from "./actions/edit_map_actions/HelpAction";
 import {PathDrawer} from "./PathDrawer";
@@ -15,63 +15,97 @@ interface CleanupCoverageMapState extends MapState {
 }
 
 class RobotCoverageMap extends Map<CleanupCoverageMapProps, CleanupCoverageMapState> {
-    protected renderAdditionalElements(): JSX.Element {
-        return <>
-            <HelpAction
-                helpDialogOpen={this.state.helpDialogOpen}
-                setHelpDialogOpen={(open) => {
-                    this.setState({helpDialogOpen: open});
-                }}
-            />
+    constructor(props: MapProps) {
+        super(props);
 
-            <HelpDialog
-                dialogOpen={this.state.helpDialogOpen}
-                setDialogOpen={(open: boolean) => {
-                    this.setState({helpDialogOpen: open});
-                }}
-                helpText={this.props.helpText}
-            />
-        </>;
+        this.state = {
+            selectedSegmentIds: [],
+            helpDialogOpen: false
+        };
     }
 
-    protected updateDrawableComponents(): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            this.drawableComponentsMutex.take(async () => {
-                this.drawableComponents = [];
 
-                await this.mapLayerRenderer.draw(this.props.rawMap, this.props.theme);
-                this.drawableComponents.push(this.mapLayerRenderer.getCanvas());
+    render(): JSX.Element {
+        return (
+            <MapContainer style={{overflow: "hidden"}}>
+                <canvas
+                    ref={this.canvasRef}
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                        imageRendering: "crisp-edges"
+                    }}
+                />
 
-                const pathsImage = await PathDrawer.drawPaths( {
-                    paths: this.props.rawMap.entities.filter(e => {
-                        return e.type === RawMapEntityType.Path || e.type === RawMapEntityType.PredictedPath;
-                    }),
-                    mapWidth: this.props.rawMap.size.x,
-                    mapHeight: this.props.rawMap.size.y,
-                    pixelSize: this.props.rawMap.pixelSize,
-                    theme: this.props.theme,
-                    width: 5
-                });
+                <HelpAction
+                    helpDialogOpen={this.state.helpDialogOpen}
+                    setHelpDialogOpen={(open) => {
+                        this.setState({helpDialogOpen: open});
+                    }}
+                />
 
-                this.drawableComponents.push(pathsImage);
+                <HelpDialog
+                    dialogOpen={this.state.helpDialogOpen}
+                    setDialogOpen={(open: boolean) => {
+                        this.setState({helpDialogOpen: open});
+                    }}
+                    helpText={this.props.helpText}
+                />
+            </MapContainer>
+        );
+    }
 
-                this.structureManager.updateMapStructuresFromMapData(this.props.rawMap);
-
-                // remove all segment labels
-                this.structureManager.getMapStructures().forEach(s => {
-                    if (s.type === SegmentLabelMapStructure.TYPE) {
-                        this.structureManager.removeMapStructure(s);
-                    }
-                });
-
-
-                this.updateState();
-
-                this.drawableComponentsMutex.leave();
-
+    protected async updateDrawableComponents(): Promise<void> {
+        await new Promise<void>((resolve) => {
+            this.drawableComponentsMutex.take(() => {
                 resolve();
             });
         });
+
+
+        this.drawableComponents = [];
+
+        await this.mapLayerManager.draw(this.props.rawMap, this.props.theme);
+        this.drawableComponents.push(this.mapLayerManager.getCanvas());
+
+        const coveragePathImage = await PathDrawer.drawPaths( {
+            paths: this.props.rawMap.entities.filter(e => {
+                return e.type === RawMapEntityType.Path;
+            }),
+            mapWidth: this.props.rawMap.size.x,
+            mapHeight: this.props.rawMap.size.y,
+            pixelSize: this.props.rawMap.pixelSize,
+            paletteMode: this.props.theme.palette.mode === "dark" ? "light" : "dark",
+            width: 5
+        });
+
+        this.drawableComponents.push(coveragePathImage);
+
+        const pathsImage = await PathDrawer.drawPaths( {
+            paths: this.props.rawMap.entities.filter(e => {
+                return e.type === RawMapEntityType.Path || e.type === RawMapEntityType.PredictedPath;
+            }),
+            mapWidth: this.props.rawMap.size.x,
+            mapHeight: this.props.rawMap.size.y,
+            pixelSize: this.props.rawMap.pixelSize,
+            paletteMode: this.props.theme.palette.mode,
+        });
+
+        this.drawableComponents.push(pathsImage);
+
+        this.structureManager.updateMapStructuresFromMapData(this.props.rawMap);
+
+        // remove all segment labels
+        this.structureManager.getMapStructures().forEach(s => {
+            if (s.type === SegmentLabelMapStructure.TYPE) {
+                this.structureManager.removeMapStructure(s);
+            }
+        });
+
+
+        this.updateState();
+
+        this.drawableComponentsMutex.leave();
     }
 
     //eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types

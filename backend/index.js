@@ -3,7 +3,15 @@
 const Logger = require("./lib/Logger");
 const Valetudo = require("./lib/Valetudo");
 
-var valetudo = new Valetudo();
+const valetudo = new Valetudo();
+
+/*
+    This is the easiest and most complete Mitigation against CWE-1321 Prototype Pollution
+    We do that after new Valetudo() to not interfere with any (library) code.
+    
+    This way, this should only interfere with malicious user input (if any)
+ */
+Object.freeze(Object.prototype);
 
 process.on("unhandledRejection", (reason, promise) => {
     Logger.error("unhandledRejection", {

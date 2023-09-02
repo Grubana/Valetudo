@@ -1,6 +1,6 @@
 const MapSegmentEditCapability = require("../../../core/capabilities/MapSegmentEditCapability");
 const RobotFirmwareError = require("../../../core/RobotFirmwareError");
-const ViomiMapParser = require("../ViomiMapParser");
+const ThreeIRobotixMapParser = require("../../3irobotix/ThreeIRobotixMapParser");
 
 /**
  * @extends MapSegmentEditCapability<import("../ViomiValetudoRobot")>
@@ -51,7 +51,7 @@ class ViomiMapSegmentEditCapability extends MapSegmentEditCapability {
         try {
             const result = await this.robot.sendCommand("arrange_room", {
                 lang: this.lang,
-                mapId: this.robot.state.map.metaData.vendorMapId,
+                mapId: this.robot.ephemeralState.vendorMapId,
                 roomArr: [[parseInt(segmentA.id), parseInt(segmentB.id)]],
                 type: this.mapActions.JOIN_SEGMENT_TYPE
             }, {
@@ -83,11 +83,11 @@ class ViomiMapSegmentEditCapability extends MapSegmentEditCapability {
         try {
             const result = await this.robot.sendCommand("arrange_room", {
                 lang: this.lang,
-                mapId: this.robot.state.map.metaData.vendorMapId,
+                mapId: this.robot.ephemeralState.vendorMapId,
                 pointArr: [[
                     1,
-                    this.pointToViomiString(ViomiMapParser.positionToViomi(pA.x, pA.y)),
-                    this.pointToViomiString(ViomiMapParser.positionToViomi(pB.x, pB.y))
+                    this.pointToViomiString(ThreeIRobotixMapParser.CONVERT_TO_THREEIROBOTIX_COORDINATES(pA.x, pA.y)),
+                    this.pointToViomiString(ThreeIRobotixMapParser.CONVERT_TO_THREEIROBOTIX_COORDINATES(pB.x, pB.y))
                 ]],
                 roomId: parseInt(segment.id),
                 type: this.mapActions.SPLIT_SEGMENT_TYPE

@@ -5,6 +5,8 @@ export enum Capability {
     AutoEmptyDockManualTrigger = "AutoEmptyDockManualTriggerCapability",
     BasicControl = "BasicControlCapability",
     CarpetModeControl = "CarpetModeControlCapability",
+    CarpetSensorModeControl = "CarpetSensorModeControlCapability",
+    CollisionAvoidantNavigation = "CollisionAvoidantNavigationControlCapability",
     CombinedVirtualRestrictions = "CombinedVirtualRestrictionsCapability",
     ConsumableMonitoring = "ConsumableMonitoringCapability",
     CurrentStatistics = "CurrentStatisticsCapability",
@@ -20,6 +22,11 @@ export enum Capability {
     MapSegmentation = "MapSegmentationCapability",
     MapSnapshot = "MapSnapshotCapability",
     MappingPass = "MappingPassCapability",
+    ObstacleAvoidanceControl = "ObstacleAvoidanceControlCapability",
+    PetObstacleAvoidanceControl = "PetObstacleAvoidanceControlCapability",
+    MopDockCleanManualTrigger = "MopDockCleanManualTriggerCapability",
+    MopDockDryManualTrigger = "MopDockDryManualTriggerCapability",
+    OperationModeControl = "OperationModeControlCapability",
     PersistentMapControl = "PersistentMapControlCapability",
     SpeakerTest = "SpeakerTestCapability",
     SpeakerVolumeControl = "SpeakerVolumeControlCapability",
@@ -27,6 +34,7 @@ export enum Capability {
     VoicePackManagement = "VoicePackManagementCapability",
     WaterUsageControl = "WaterUsageControlCapability",
     WifiConfiguration = "WifiConfigurationCapability",
+    WifiScan = "WifiScanCapability",
     ZoneCleaning = "ZoneCleaningCapability",
     Quirks = "QuirksCapability",
 }
@@ -43,7 +51,11 @@ export interface Zone {
         pC: Point;
         pD: Point;
     };
-    iterations: number;
+}
+
+export interface ZoneActionRequestParameters {
+    zones: Zone[];
+    iterations?: number;
 }
 
 export interface ZoneProperties {
@@ -81,6 +93,8 @@ export interface RobotInformation {
 
 export interface ValetudoInformation {
     embedded: boolean;
+    systemId: string;
+    welcomeDialogDismissed: boolean;
 }
 
 export interface ValetudoVersion {
@@ -139,30 +153,62 @@ export interface MapSegmentRenameRequestParameters {
     name: string;
 }
 
+export type ConsumableType = "filter" | "brush" | "sensor" | "mop" | "detergent";
+export type ConsumableSubType = "none" | "all" | "main" | "secondary" | "side_left" | "side_right";
+export type ConsumableUnit = "minutes" | "percent";
+
 export interface ConsumableState {
-    type: string;
-    subType?: string;
+    type: ConsumableType;
+    subType?: ConsumableSubType;
     remaining: {
         value: number;
-        unit: "percent" | "minutes";
+        unit: ConsumableUnit;
     }
 }
 
 export interface ConsumableId {
-    type: string;
-    subType?: string;
+    type: ConsumableType;
+    subType?: ConsumableSubType;
+}
+
+export interface ConsumableMeta {
+    type: ConsumableType,
+    subType: ConsumableSubType,
+    unit: ConsumableUnit,
+    maxValue?: number
+}
+
+export interface ConsumableProperties {
+    availableConsumables: Array<ConsumableMeta>
+}
+
+
+export enum ValetudoTimerActionType {
+    FULL_CLEANUP = "full_cleanup",
+    SEGMENT_CLEANUP = "segment_cleanup"
+}
+
+export enum ValetudoTimerPreActionType {
+    FAN_SPEED_CONTROL = "fan_speed_control",
+    WATER_USAGE_CONTROL = "water_usage_control",
+    OPERATION_MODE_CONTROL = "operation_mode_control"
 }
 
 export interface Timer {
     id: string;
     enabled: boolean;
+    label?: string;
     dow: Array<number>;
     hour: number;
     minute: number;
     action: {
-        type: string;
+        type: ValetudoTimerActionType;
         params: Record<string, unknown>;
     };
+    pre_actions?: Array<{
+        type: ValetudoTimerPreActionType;
+        params: Record<string, unknown>;
+    }>;
 }
 
 export interface TimerInformation {
@@ -170,7 +216,8 @@ export interface TimerInformation {
 }
 
 export interface TimerProperties {
-    supportedActions: Array<string>;
+    supportedActions: Array<ValetudoTimerActionType>;
+    supportedPreActions: Array<ValetudoTimerPreActionType>
 }
 
 export interface MQTTConfiguration {
@@ -181,6 +228,7 @@ export interface MQTTConfiguration {
         tls: {
             enabled: boolean;
             ca: string;
+            ignoreCertificateErrors: boolean;
         };
         authentication: {
             credentials: {
@@ -196,7 +244,6 @@ export interface MQTTConfiguration {
         };
     };
     identity: {
-        friendlyName: string;
         identifier: string;
     };
     customizations: {
@@ -214,6 +261,7 @@ export interface MQTTConfiguration {
             cleanAutoconfOnShutdown: boolean;
         };
     };
+    optionalExposedCapabilities: Array<string>;
 }
 
 export interface MQTTStatus {
@@ -241,13 +289,13 @@ export interface MQTTStatus {
 export interface MQTTProperties {
     defaults: {
         identity: {
-            friendlyName: string;
             identifier: string;
         };
         customizations: {
             topicPrefix: string;
         };
     };
+    optionalExposableCapabilities: Array<string>;
 }
 
 export interface HTTPBasicAuthConfiguration {
@@ -381,6 +429,18 @@ export interface WifiStatus {
     };
 }
 
+export interface WifiConfigurationProperties {
+    provisionedReconfigurationSupported: boolean;
+}
+
+export interface ValetudoWifiNetwork {
+    bssid: string,
+    details: {
+        ssid?: string,
+        signal?: number
+    }
+}
+
 export type ManualControlAction = "enable" | "disable" | "move";
 
 export type ManualControlCommand = "forward" | "backward" | "rotate_clockwise" | "rotate_counterclockwise";
@@ -423,9 +483,18 @@ export interface CombinedVirtualRestrictionsProperties {
     supportedRestrictedZoneTypes: Array<ValetudoRestrictedZoneType>
 }
 
+export interface UpdaterConfiguration {
+    updateProvider: "github" | "github_nightly";
+}
+
+export interface UpdaterStateMetaData {
+    progress: number | undefined;
+}
+
 export interface UpdaterState {
     __class: "ValetudoUpdaterIdleState" | "ValetudoUpdaterErrorState" | "ValetudoUpdaterApprovalPendingState" | "ValetudoUpdaterDownloadingState" | "ValetudoUpdaterApplyPendingState" | "ValetudoUpdaterDisabledState" | "ValetudoUpdaterNoUpdateRequiredState";
     timestamp: string;
+    metaData: UpdaterStateMetaData;
     busy: boolean;
     type?: "unknown" | "not_embedded" | "not_docked" | "not_writable" | "not_enough_space" | "download_failed" | "no_matching_binary" | "missing_manifest" | "invalid_manifest" | "invalid_checksum";
     message?: string;
@@ -465,4 +534,17 @@ export interface SetQuirkValueCommand {
 
 export interface RobotProperties {
     firmwareVersion: string
+}
+
+export interface ValetudoCustomizations {
+    friendlyName: string;
+}
+
+export type CarpetSensorMode = "off" | "avoid" | "lift";
+
+export interface CarpetSensorModePayload {
+    mode: CarpetSensorMode
+}
+export interface CarpetSensorModeControlProperties {
+    supportedModes: Array<CarpetSensorMode>
 }

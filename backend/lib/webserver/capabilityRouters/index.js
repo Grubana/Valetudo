@@ -1,6 +1,7 @@
 module.exports = {
     AutoEmptyDockManualTriggerCapabilityRouter: require("./AutoEmptyDockManualTriggerCapabilityRouter"),
     BasicControlCapabilityRouter: require("./BasicControlCapabilityRouter"),
+    CarpetSensorModeControlCapabilityRouter: require("./CarpetSensorModeControlCapabilityRouter"),
     CombinedVirtualRestrictionsCapabilityRouter: require("./CombinedVirtualRestrictionsCapabilityRouter"),
     ConsumableMonitoringCapabilityRouter: require("./ConsumableMonitoringCapabilityRouter"),
     DoNotDisturbCapabilityRouter: require("./DoNotDisturbCapabilityRouter"),
@@ -13,6 +14,8 @@ module.exports = {
     MapSegmentationCapabilityRouter: require("./MapSegmentationCapabilityRouter"),
     MapSnapshotCapabilityRouter: require("./MapSnapshotCapabilityRouter"),
     MappingPassCapabilityRouter: require("./MappingPassCapabilityRouter"),
+    MopDockCleanManualTriggerCapabilityRouter: require("./MopDockCleanManualTriggerCapabilityRouter"),
+    MopDockDryManualTriggerCapabilityRouter: require("./MopDockDryManualTriggerCapabilityRouter"),
     PendingMapChangeHandlingCapabilityRouter: require("./PendingMapChangeHandlingCapabilityRouter"),
     PresetSelectionCapabilityRouter: require("./PresetSelectionCapabilityRouter"),
     QuirksCapabilityRouter: require("./QuirksCapabilityRouter"),

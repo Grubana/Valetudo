@@ -1,8 +1,10 @@
 import {
-    Box, CircularProgress,
+    Box,
+    CircularProgress,
     Grid,
     LinearProgress,
-    linearProgressClasses, Paper,
+    linearProgressClasses,
+    Paper,
     styled,
     Typography,
 } from "@mui/material";
@@ -21,7 +23,7 @@ const batteryLevelColors = {
 };
 
 const getBatteryColor = (level: number): "red" | "yellow" | "green" => {
-    if (level > 75) {
+    if (level > 60) {
         return "green";
     }
 
@@ -133,7 +135,16 @@ const RobotStatus = (): JSX.Element => {
                                 <Grid item>
                                     <Typography variant="subtitle2">State</Typography>
                                 </Grid>
-                                <Grid item style={{maxHeight: "2rem"}}>{stateDetails}</Grid>
+                                <Grid
+                                    item
+                                    style={{
+                                        maxHeight: "2rem",
+                                        overflow: "hidden",
+                                        wordBreak: "break-all"
+                                    }}
+                                >
+                                    {stateDetails}
+                                </Grid>
                             </Grid>
                             {batteries !== undefined && batteries.length > 0 && (
                                 <Grid item xs container direction="column" sx={{paddingRight:"8px"}}>

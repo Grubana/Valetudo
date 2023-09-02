@@ -1,7 +1,6 @@
 import MapStructure from "./MapStructure";
 import segmentIconSVG from "../icons/segment.svg";
 import segmentSelectedIconSVG from "../icons/segment_selected.svg";
-import {PointCoordinates, StructureInterceptionHandlerResult} from "../Structure";
 import {Canvas2DContextTrackingWrapper} from "../../utils/Canvas2DContextTrackingWrapper";
 
 const img = new Image();
@@ -9,6 +8,7 @@ img.src = segmentIconSVG;
 
 const img_selected = new Image();
 img_selected.src = segmentSelectedIconSVG;
+
 
 class SegmentLabelMapStructure extends MapStructure {
     public static TYPE = "SegmentLabelMapStructure";
@@ -122,25 +122,8 @@ class SegmentLabelMapStructure extends MapStructure {
         }
     }
 
-    tap(tappedPoint : PointCoordinates, transformationMatrixToScreenSpace: DOMMatrixInit) : StructureInterceptionHandlerResult {
-        const p0 = new DOMPoint(this.x0, this.y0).matrixTransform(transformationMatrixToScreenSpace);
-
-        if (
-            tappedPoint.x >= p0.x - this.scaledIconSize.width / 2 &&
-            tappedPoint.x <= p0.x + this.scaledIconSize.width / 2 &&
-            tappedPoint.y >= p0.y - this.scaledIconSize.height / 2 &&
-            tappedPoint.y <= p0.y + this.scaledIconSize.height / 2
-        ) {
-            this.selected = !this.selected;
-
-            return {
-                stopPropagation: true
-            };
-        }
-
-        return {
-            stopPropagation: false
-        };
+    onTap() {
+        this.selected = !this.selected;
     }
 
     getType(): string {
