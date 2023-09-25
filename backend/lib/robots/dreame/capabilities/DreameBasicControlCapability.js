@@ -48,7 +48,7 @@ class DreameBasicControlCapability extends BasicControlCapability {
         await this.helper.executeAction(this.miot_actions.pause.siid, this.miot_actions.pause.aiid);
     }
 
-    async home() {
+    async execHome() {
         await this.helper.executeAction(this.miot_actions.home.siid, this.miot_actions.home.aiid);
     }
 }

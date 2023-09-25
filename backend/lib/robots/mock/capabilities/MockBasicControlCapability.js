@@ -13,40 +13,60 @@ class MockBasicControlCapability extends BasicControlCapability {
     constructor(options) {
         super(options);
 
-        this.StatusStateAttr = new stateAttrs.StatusStateAttribute({
+        this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.StatusStateAttribute({
             value: stateAttrs.StatusStateAttribute.VALUE.DOCKED,
             flag: stateAttrs.StatusStateAttribute.FLAG.NONE
-        });
-        this.robot.state.upsertFirstMatchingAttribute(this.StatusStateAttr);
+        }));
 
-        this.BatteryStateAttr = new stateAttrs.BatteryStateAttribute({ level: 100 });
-        this.robot.state.upsertFirstMatchingAttribute(this.BatteryStateAttr);
+        this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.BatteryStateAttribute({ level: 100 }));
         setInterval(() => {
-            if (this.StatusStateAttr.value === stateAttrs.StatusStateAttribute.VALUE.DOCKED && this.BatteryStateAttr.level < 100) {
-                this.BatteryStateAttr.level++;
-            } else if (this.StatusStateAttr.value !== stateAttrs.StatusStateAttribute.VALUE.DOCKED && this.BatteryStateAttr.level > 0) {
-                this.BatteryStateAttr.level--;
+            const state = this.robot.state.getFirstMatchingAttributeByConstructor(stateAttrs.StatusStateAttribute)
+            const battery = this.robot.state.getFirstMatchingAttributeByConstructor(stateAttrs.BatteryStateAttribute)
+            if (state.value === stateAttrs.StatusStateAttribute.VALUE.DOCKED && battery.level < 100) {
+                this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.BatteryStateAttribute({ level: battery.level + 1 }));
+            } else if (state.value !== stateAttrs.StatusStateAttribute.VALUE.DOCKED && battery.level > 0) {
+                this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.BatteryStateAttribute({ level: battery.level - 1 }));
             }
-        }, 5 * 1000);
+        }, 1000);
     }
 
     async start() {
-        this.StatusStateAttr.value = stateAttrs.StatusStateAttribute.VALUE.CLEANING;
+        this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.StatusStateAttribute({
+            value: stateAttrs.StatusStateAttribute.VALUE.CLEANING,
+            flag: stateAttrs.StatusStateAttribute.FLAG.NONE
+        }));
     }
 
     async stop() {
-        this.StatusStateAttr.value = stateAttrs.StatusStateAttribute.VALUE.IDLE;
+        this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.StatusStateAttribute({
+            value: stateAttrs.StatusStateAttribute.VALUE.IDLE,
+            flag: stateAttrs.StatusStateAttribute.FLAG.NONE
+        }));
     }
 
     async pause() {
-        this.StatusStateAttr.value = stateAttrs.StatusStateAttribute.VALUE.PAUSED;
+        this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.StatusStateAttribute({
+            value: stateAttrs.StatusStateAttribute.VALUE.PAUSED,
+            flag: stateAttrs.StatusStateAttribute.FLAG.NONE
+        }));
     }
 
-    async home() {
-        this.StatusStateAttr.value = stateAttrs.StatusStateAttribute.VALUE.RETURNING;
+    async execHome() {
+        this.robot.state.upsertFirstMatchingAttribute(new stateAttrs.StatusStateAttribute({
+            value: stateAttrs.StatusStateAttribute.VALUE.RETURNING,
+            flag: stateAttrs.StatusStateAttribute.FLAG.NONE
+        }));
+        const robot = this.robot;
         setTimeout(() => {
-            this.StatusStateAttr.value = stateAttrs.StatusStateAttribute.VALUE.DOCKED;
-        }, 10 * 1000);
+            const state = robot.state.getFirstMatchingAttributeByConstructor(stateAttrs.StatusStateAttribute);
+            if(state.value !== stateAttrs.StatusStateAttribute.VALUE.RETURNING){
+                return;
+            }
+            robot.state.upsertFirstMatchingAttribute(new stateAttrs.StatusStateAttribute({
+                value: stateAttrs.StatusStateAttribute.VALUE.DOCKED,
+                flag: stateAttrs.StatusStateAttribute.FLAG.NONE
+            }));
+        }, 3 * 1000);
     }
 }
 

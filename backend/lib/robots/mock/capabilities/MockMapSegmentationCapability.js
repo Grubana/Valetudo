@@ -1,5 +1,6 @@
 const MapSegmentationCapability = require("../../../core/capabilities/MapSegmentationCapability");
 const ValetudoMapSegment = require("../../../entities/core/ValetudoMapSegment");
+const Logger = require("../../../Logger");
 
 /**
  * @extends MapSegmentationCapability<import("../MockRobot")>
@@ -41,6 +42,11 @@ class MockMapSegmentationCapability extends MapSegmentationCapability {
      */
     async executeSegmentAction(segments, options) {
         await this.robot.capabilities.BasicControlCapability.start();
+        Logger.info("Cleaning segments", segments);
+        setTimeout(() => {
+            Logger.info("Done cleaning segments", segments);
+            this.robot.capabilities.BasicControlCapability.home();
+        }, 30000);
     }
 }
 

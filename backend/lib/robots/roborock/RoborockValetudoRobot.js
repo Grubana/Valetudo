@@ -96,6 +96,7 @@ class RoborockValetudoRobot extends MiioValetudoRobot {
 
 
     onIncomingCloudMessage(msg) {
+        console.log("got cloud message", JSON.stringify(msg));
         switch (msg.method) {
             case "props":
                 this.parseAndUpdateState(msg.params);

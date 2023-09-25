@@ -40,7 +40,7 @@ class RoborockBasicControlCapability extends BasicControlCapability {
         await this.robot.sendCommand("app_pause", [], {});
     }
 
-    async home() {
+    async execHome() {
         await this.robot.sendCommand("app_charge", []);
     }
 

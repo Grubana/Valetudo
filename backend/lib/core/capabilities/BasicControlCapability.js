@@ -1,5 +1,6 @@
 const Capability = require("./Capability");
 const NotImplementedError = require("../NotImplementedError");
+const MapSegmentationQueueFactory = require("./MapSegmentationQueueFactory");
 
 /**
  * @template {import("../ValetudoRobot")} T
@@ -45,10 +46,20 @@ class BasicControlCapability extends Capability {
     }
 
     /**
-     * @abstract
      * @returns {Promise<void>}
      */
     async home() {
+        const mapSegmentationQueue = MapSegmentationQueueFactory.get();
+        if(mapSegmentationQueue !== null){
+            await mapSegmentationQueue.clear();
+        }
+        await this.execHome();
+    }
+    /**
+     * @abstract
+     * @returns {Promise<void>}
+     */
+    async execHome() {
         throw new NotImplementedError();
     }
 

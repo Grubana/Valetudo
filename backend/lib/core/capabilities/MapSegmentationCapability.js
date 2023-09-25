@@ -1,11 +1,20 @@
 const Capability = require("./Capability");
+
 const NotImplementedError = require("../NotImplementedError");
+const MapSegmentationQueueFactory = require("./MapSegmentationQueueFactory");
+
 
 /**
  * @template {import("../ValetudoRobot")} T
  * @extends Capability<T>
  */
 class MapSegmentationCapability extends Capability {
+
+    constructor(options) {
+        super(options);
+        this.queue = MapSegmentationQueueFactory.getOrInitInstance(this, options.robot);
+    }
+
     /**
      * @returns {Promise<Array<import("../../entities/core/ValetudoMapSegment")>>}
      */
@@ -25,6 +34,22 @@ class MapSegmentationCapability extends Capability {
      */
     async executeSegmentAction(segments, options) {
         throw new NotImplementedError();
+    }
+
+    async queueSegmentAction(jobId, segments, options) {
+        await this.queue.add(jobId, segments, options);
+    }
+
+    async dequeueSegmentAction(jobId) {
+        await this.queue.remove(jobId);
+    }
+
+    getJobStatus(jobId) {
+        return this.queue.getStatus(jobId);
+    }
+
+    getQueue() {
+        return this.queue.getQueue();
     }
 
     /**
@@ -55,6 +80,6 @@ module.exports = MapSegmentationCapability;
  * @property {object} iterationCount
  * @property {number} iterationCount.min
  * @property {number} iterationCount.max
- * 
+ *
  * @property {boolean} customOrderSupport
  */

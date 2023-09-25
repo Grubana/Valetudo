@@ -178,7 +178,7 @@ class ViomiBasicControlCapability extends BasicControlCapability {
         }
     }
 
-    async home() {
+    async execHome() {
         // If the vacuum is docked and we try to dock it again, it will start making out with the dock until stopped.
         const statusAttribute = this.robot.state.getFirstMatchingAttributeByConstructor(
             stateAttrs.StatusStateAttribute
